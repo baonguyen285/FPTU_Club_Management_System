@@ -1,0 +1,139 @@
+version: '3.8'
+
+networks:
+  fptu-network:
+    driver: bridge
+
+volumes:
+  sqlserver-data:
+  redis-data:
+
+services:
+  # ─── Infrastructure ──────────────────────────────
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: fptu-sqlserver
+    environment:
+      SA_PASSWORD: "YourStrong!Passw0rd"
+      ACCEPT_EULA: "Y"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    networks:
+      - fptu-network
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P YourStrong!Passw0rd -Q 'SELECT 1'"]
+      interval: 10s
+      retries: 5
+      timeout: 5s
+
+  redis:
+    image: redis:7-alpine
+    container_name: fptu-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - fptu-network
+    command: redis-server --appendonly yes
+
+  # ─── Microservices ──────────────────────
+  auth-service:
+    build:
+      context: .
+      dockerfile: src/Services/Auth/Auth.API/Dockerfile
+    container_name: fptu-auth
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=auth_db;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True
+      - JwtSettings__SecretKey=your-super-secret-key-min-32-chars!!
+      - JwtSettings__Issuer=fptu-club-system
+      - JwtSettings__Audience=fptu-club-clients
+    ports:
+      - "5001:8080"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    networks:
+      - fptu-network
+
+  club-service:
+    build:
+      context: .
+      dockerfile: src/Services/Club/Club.API/Dockerfile
+    container_name: fptu-club
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=club_db;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True
+    ports:
+      - "5002:8080"
+      - "9001:9001"   # Expose gRPC port for internal microservice communication
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    networks:
+      - fptu-network
+
+  report-service:
+    build:
+      context: .
+      dockerfile: src/Services/Report/Report.API/Dockerfile
+    container_name: fptu-report
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=report_db;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True
+      - ConnectionStrings__Redis=redis:6379
+      - GrpcSettings__ClubServiceUrl=http://club-service:9001
+      - JwtSettings__SecretKey=your-super-secret-key-min-32-chars!!
+      - JwtSettings__Issuer=fptu-club-system
+      - JwtSettings__Audience=fptu-club-clients
+    ports:
+      - "5003:8080"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      club-service:
+        condition: service_started
+    networks:
+      - fptu-network
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: src/Services/Notification/Notification.API/Dockerfile
+    container_name: fptu-notification
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__Redis=redis:6379
+    ports:
+      - "5004:8080"
+    depends_on:
+      redis:
+        condition: service_started
+    networks:
+      - fptu-network
+
+  # ─── API Gateway ──────────────────────────────────────
+  api-gateway:
+    build:
+      context: .
+      dockerfile: src/ApiGateway/ApiGateway/Dockerfile
+    container_name: fptu-gateway
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - JwtSettings__SecretKey=your-super-secret-key-min-32-chars!!
+      - JwtSettings__Issuer=fptu-club-system
+      - JwtSettings__Audience=fptu-club-clients
+    ports:
+      - "5000:8080"
+    depends_on:
+      - auth-service
+      - club-service
+      - report-service
+      - notification-service
+    networks:
+      - fptu-network

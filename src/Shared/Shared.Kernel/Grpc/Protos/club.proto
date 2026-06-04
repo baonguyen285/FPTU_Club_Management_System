@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+option csharp_namespace = "Shared.Kernel.Grpc";
+
+package club;
+
+service ClubGrpcService {
+  rpc CheckClubExists (ClubRequest) returns (ClubResponse);
+}
+
+message ClubRequest {
+  string club_id = 1;
+}
+
+message ClubResponse {
+  bool is_exists = 1;
+}
