@@ -1,3 +1,6 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Club.Infrastructure.Persistence;
 using Club.API.GrpcServices;
@@ -21,16 +24,76 @@ builder.WebHost.ConfigureKestrel(options =>
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "Club.API", Version = "v1" });
+    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. \r\n\r\n 👉 Nhập trực tiếp chuỗi Token của bạn vào ô bên dưới (KHÔNG cần gõ chữ 'Bearer' ở trước).",
+        Name = "Authorization",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT"
+    });
+    c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            new string[] {}
+        }
+    });
+});
 
 // Configure DB Context
 var connString = builder.Configuration.GetConnectionString("DefaultConnection") 
-    ?? "Server=localhost;Database=club_db;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True";
+    ?? "Server=localhost;Database=club_db;Trusted_Connection=True;TrustServerCertificate=True";
 builder.Services.AddDbContext<ClubDbContext>(options =>
     options.UseSqlServer(connString));
 
+// Add Repositories
+builder.Services.AddScoped<Club.Application.Interfaces.IClubRepository, Club.Infrastructure.Repositories.ClubRepository>();
+builder.Services.AddScoped<Club.Application.Interfaces.IUnitOfWork, Club.Infrastructure.Repositories.UnitOfWork>();
+
+// Add MediatR and AutoMapper
+builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Club.Application.DTOs.ClubDto).Assembly));
+builder.Services.AddAutoMapper(typeof(Club.Application.DTOs.MappingProfile).Assembly);
+
 // Add gRPC
 builder.Services.AddGrpc();
+
+// Configure JWT Authentication
+var secretKey = builder.Configuration["JwtSettings:SecretKey"] ?? "your-super-secret-key-min-32-chars!!";
+var key = Encoding.UTF8.GetBytes(secretKey);
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.RequireHttpsMetadata = false;
+    options.SaveToken = true;
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(key),
+        ValidateIssuer = true,
+        ValidIssuer = builder.Configuration["JwtSettings:Issuer"] ?? "fptu-club-system",
+        ValidateAudience = true,
+        ValidAudience = builder.Configuration["JwtSettings:Audience"] ?? "fptu-club-clients",
+        ValidateLifetime = true,
+        ClockSkew = TimeSpan.Zero
+    };
+});
 
 var app = builder.Build();
 
@@ -43,6 +106,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();

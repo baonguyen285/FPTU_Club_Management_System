@@ -6,6 +6,8 @@ package club;
 
 service ClubGrpcService {
   rpc CheckClubExists (ClubRequest) returns (ClubResponse);
+  rpc GetClubInfo (ClubRequest) returns (ClubInfoResponse);
+  rpc IsClubManager (ClubManagerRequest) returns (ClubManagerResponse);
 }
 
 message ClubRequest {
@@ -14,4 +16,19 @@ message ClubRequest {
 
 message ClubResponse {
   bool is_exists = 1;
+}
+
+message ClubInfoResponse {
+  string id = 1;
+  string name = 2;
+  bool is_active = 3;
+}
+
+message ClubManagerRequest {
+  string club_id = 1;
+  string user_id = 2;
+}
+
+message ClubManagerResponse {
+  bool is_manager = 1;
 }
