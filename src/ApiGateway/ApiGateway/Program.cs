@@ -45,6 +45,9 @@ app.UseRouting();
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Enable WebSockets for SignalR
+app.UseWebSockets();
+
 // Setup Ocelot
 await app.UseOcelot();
 

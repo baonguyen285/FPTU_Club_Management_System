@@ -29,10 +29,12 @@ namespace Report.Application.Features.Reports.Commands.CreateReport
     public class CreateReportCommandHandler : IRequestHandler<CreateReportCommand, ReportDto>
     {
         private readonly IReportUnitOfWork _uow;
+        private readonly IEventPublisher _eventPublisher;
 
-        public CreateReportCommandHandler(IReportUnitOfWork uow)
+        public CreateReportCommandHandler(IReportUnitOfWork uow, IEventPublisher eventPublisher)
         {
             _uow = uow;
+            _eventPublisher = eventPublisher;
         }
 
         public async Task<ReportDto> Handle(CreateReportCommand request, CancellationToken cancellationToken)
@@ -55,6 +57,9 @@ namespace Report.Application.Features.Reports.Commands.CreateReport
 
             await _uow.Reports.AddAsync(report);
             await _uow.SaveChangesAsync();
+
+            var evt = new Events.ReportSubmittedEvent(report.Id, report.ClubId, report.Title, report.CreatedBy, report.CreatedAt);
+            await _eventPublisher.PublishAsync("report-events-channel", evt);
 
             return new ReportDto
             {

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test SignalR qua API Gateway</title>
+    <!-- Tải thư viện SignalR từ CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .box { padding: 15px; border: 1px solid #ccc; border-radius: 5px; margin-bottom: 20px; }
+        #messages { background: #f9f9f9; min-height: 200px; padding: 10px; font-family: monospace; border: 1px solid #ddd; }
+        .msg { padding: 5px; border-bottom: 1px solid #eee; }
+        .success { color: green; font-weight: bold; }
+        .error { color: red; font-weight: bold; }
+        input { padding: 8px; width: 80%; margin-bottom: 10px; }
+        button { padding: 10px 20px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 3px; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+
+    <h2>Công cụ Test Notification (Gateway Port 5000)</h2>
+    
+    <div class="box">
+        <label><b>Nhập Token của bạn vào đây:</b></label><br>
+        <input type="text" id="tokenInput" placeholder="eyJhbGciOiJIUzI1NiIsInI5c..."><br>
+        <button onclick="connectSignalR()">Kết nối ngay!</button>
+    </div>
+
+    <h3>Lịch sử thông báo:</h3>
+    <div id="messages"></div>
+
+    <script>
+        let connection = null;
+
+        function connectSignalR() {
+            const token = document.getElementById("tokenInput").value.trim();
+            if(!token) {
+                alert("Vui lòng nhập Token trước!");
+                return;
+            }
+
+            // Ghi log đang kết nối (ĐỔI SANG PORT 5000 của Gateway)
+            logMessage("Đang thử kết nối tới ws://localhost:5000/gateway/hubs/notification...");
+
+            // Khởi tạo kết nối SignalR
+            connection = new signalR.HubConnectionBuilder()
+                .withUrl("http://localhost:5000/gateway/hubs/notification?access_token=" + token, {
+                    skipNegotiation: true,
+                    transport: signalR.HttpTransportType.WebSockets
+                })
+                .configureLogging(signalR.LogLevel.Information)
+                .build();
+
+            // Lắng nghe sự kiện "ReceiveNotification" từ Server bắn về
+            connection.on("ReceiveNotification", function (message) {
+                logMessage("🔔 CÓ THÔNG BÁO MỚI: " + JSON.stringify(message, null, 2));
+            });
+
+            // Bắt đầu kết nối
+            connection.start()
+                .then(function () {
+                    logMessage("🟢 KẾT NỐI QUA GATEWAY THÀNH CÔNG! Đang chờ thông báo...", "success");
+                })
+                .catch(function (err) {
+                    logMessage("🔴 LỖI KẾT NỐI: " + err.toString(), "error");
+                });
+        }
+
+        function logMessage(text, type = "") {
+            const msgDiv = document.createElement("div");
+            msgDiv.className = "msg " + type;
+            const time = new Date().toLocaleTimeString();
+            msgDiv.textContent = `[${time}] ${text}`;
+            document.getElementById("messages").prepend(msgDiv);
+        }
+    </script>
+</body>
+</html>

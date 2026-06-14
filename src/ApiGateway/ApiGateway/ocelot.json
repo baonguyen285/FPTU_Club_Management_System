@@ -27,6 +27,34 @@
         "AuthenticationProviderKey": "Bearer",
         "AllowedScopes": []
       }
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/clubs/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "club-service",
+          "Port": 8080
+        }
+      ],
+      "UpstreamPathTemplate": "/gateway/clubs/{everything}",
+      "UpstreamMethods": [ "Get", "Post", "Put", "Delete", "Options" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
+    },
+    {
+      "DownstreamPathTemplate": "/hubs/notification",
+      "DownstreamScheme": "ws",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "notification-service",
+          "Port": 8080
+        }
+      ],
+      "UpstreamPathTemplate": "/gateway/hubs/notification",
+      "UpstreamMethods": [ "Get", "Post", "Put", "Delete", "Options" ]
     }
   ],
   "GlobalConfiguration": {
