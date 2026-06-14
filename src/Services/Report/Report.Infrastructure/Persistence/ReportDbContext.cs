@@ -10,6 +10,7 @@ namespace Report.Infrastructure.Persistence
         }
 
         public DbSet<Report.Domain.Entities.Report> Reports { get; set; }
+        public DbSet<ReportAttachment> ReportAttachments { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -21,6 +22,19 @@ namespace Report.Infrastructure.Persistence
                 entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
                 entity.Property(e => e.Content).IsRequired();
                 entity.Property(e => e.Status).HasConversion<int>().IsRequired();
+                entity.Property(e => e.Type).HasConversion<int>().IsRequired();
+
+                entity.HasMany(e => e.Attachments)
+                      .WithOne(a => a.Report)
+                      .HasForeignKey(a => a.ReportId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<ReportAttachment>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Url).IsRequired().HasMaxLength(500);
+                entity.Property(e => e.FileName).IsRequired().HasMaxLength(255);
             });
         }
     }

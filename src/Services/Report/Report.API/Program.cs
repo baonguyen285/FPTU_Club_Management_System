@@ -5,7 +5,7 @@ using System.Text;
 using StackExchange.Redis;
 using Shared.Kernel.Middlewares;
 using Report.Application.Interfaces;
-using Report.Application.Features.Reports.Commands.SubmitReport;
+using Report.Application.Features.Reports.Commands.CreateReport;
 using Report.Infrastructure.Persistence;
 using Report.Infrastructure.GrpcClients;
 using Report.Infrastructure.EventBus;
@@ -16,7 +16,33 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo { Title = "Report.API", Version = "v1" });
+    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. \r\n\r\n 👉 Nhập trực tiếp chuỗi Token của bạn vào ô bên dưới (KHÔNG cần gõ chữ 'Bearer' ở trước).",
+        Name = "Authorization",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT"
+    });
+    c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            new string[] {}
+        }
+    });
+});
 
 // Configure DB Context
 var connString = builder.Configuration.GetConnectionString("DefaultConnection") 
@@ -38,12 +64,18 @@ builder.Services.AddGrpcClient<ClubGrpcService.ClubGrpcServiceClient>(options =>
 
 // Configure Dependency Injection
 builder.Services.AddScoped<IReportRepository, ReportRepository>();
+builder.Services.AddScoped<IReportUnitOfWork, ReportUnitOfWork>();
 builder.Services.AddScoped<IClubGrpcClient, ClubGrpcClient>();
 builder.Services.AddScoped<IEventPublisher, RedisEventPublisher>();
 
 // Register MediatR
 builder.Services.AddMediatR(cfg => 
-    cfg.RegisterServicesFromAssembly(typeof(SubmitReportCommand).Assembly));
+    cfg.RegisterServicesFromAssembly(typeof(CreateReportCommand).Assembly));
+
+// Register AutoMapper
+// Truyền thêm cfg => {} làm tham số đầu tiên
+builder.Services.AddAutoMapper(cfg => {}, typeof(Program).Assembly, typeof(CreateReportCommand).Assembly);
+
 
 // Configure JWT Authentication
 var secretKey = builder.Configuration["JwtSettings:SecretKey"] ?? "your-super-secret-key-min-32-chars!!";

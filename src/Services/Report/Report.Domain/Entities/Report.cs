@@ -1,28 +1,29 @@
 using System;
+using System.Collections.Generic;
 using Report.Domain.Enums;
+using Shared.Kernel.Domain;
 using Shared.Kernel.Exceptions;
 
 namespace Report.Domain.Entities
 {
-    public class Report
+    public class Report : BaseEntity
     {
-        public Guid Id { get; private set; }
-        public Guid ClubId { get; private set; }
-        public string Title { get; private set; }
-        public string Content { get; private set; }
+        public string Title { get; private set; } = string.Empty;
+        public string Content { get; private set; } = string.Empty;
+        public ReportType Type { get; private set; }
         public ReportStatus Status { get; private set; }
+        public Guid ClubId { get; private set; }
         public Guid CreatedBy { get; private set; }
-        public DateTime CreatedAt { get; private set; }
-        public DateTime? SubmittedAt { get; private set; }
+        public Guid? ReviewedBy { get; private set; }
+        public string? ReviewNote { get; private set; }
+        
+        public ICollection<ReportAttachment> Attachments { get; private set; } = new List<ReportAttachment>();
 
         // EF Core Constructor
         private Report() { }
 
-        public Report(Guid id, Guid clubId, string title, string content, Guid createdBy)
+        public Report(Guid clubId, string title, string content, ReportType type, Guid createdBy)
         {
-            if (id == Guid.Empty)
-                throw new InvalidDomainException("Report ID cannot be empty.");
-
             if (clubId == Guid.Empty)
                 throw new InvalidDomainException("Club ID cannot be empty.");
 
@@ -35,52 +36,57 @@ namespace Report.Domain.Entities
             if (createdBy == Guid.Empty)
                 throw new InvalidDomainException("CreatedBy cannot be empty.");
 
-            Id = id;
+            Id = Guid.NewGuid();
             ClubId = clubId;
             Title = title;
             Content = content;
-            Status = ReportStatus.Draft;
+            Type = type;
+            Status = ReportStatus.Pending;
             CreatedBy = createdBy;
-            CreatedAt = DateTime.UtcNow;
         }
 
-        public void Submit()
+        public void Update(string title, string content, ReportType type)
         {
-            if (Status != ReportStatus.Draft)
-            {
-                throw new InvalidDomainException($"Cannot submit a report that is in {Status} status.");
-            }
+            if (Status != ReportStatus.Pending)
+                throw new InvalidDomainException("Only pending reports can be updated.");
 
-            if (string.IsNullOrWhiteSpace(Title))
-            {
-                throw new InvalidDomainException("Cannot submit a report with an empty Title.");
-            }
-
-            if (string.IsNullOrWhiteSpace(Content))
-            {
-                throw new InvalidDomainException("Cannot submit a report with empty Content.");
-            }
-
-            Status = ReportStatus.Submitted;
-            SubmittedAt = DateTime.UtcNow;
+            Title = title;
+            Content = content;
+            Type = type;
         }
 
-        public void Approve()
+        public void Approve(Guid reviewedBy, string? note = null)
         {
-            if (Status != ReportStatus.Submitted)
-            {
-                throw new InvalidDomainException("Only submitted reports can be approved.");
-            }
+            if (Status != ReportStatus.Pending)
+                throw new InvalidDomainException("Only pending reports can be approved.");
+
+            if (reviewedBy == Guid.Empty)
+                throw new InvalidDomainException("ReviewedBy cannot be empty.");
+
             Status = ReportStatus.Approved;
+            ReviewedBy = reviewedBy;
+            ReviewNote = note;
         }
 
-        public void Reject()
+        public void Reject(Guid reviewedBy, string reason)
         {
-            if (Status != ReportStatus.Submitted)
-            {
-                throw new InvalidDomainException("Only submitted reports can be rejected.");
-            }
+            if (Status != ReportStatus.Pending)
+                throw new InvalidDomainException("Only pending reports can be rejected.");
+
+            if (reviewedBy == Guid.Empty)
+                throw new InvalidDomainException("ReviewedBy cannot be empty.");
+
+            if (string.IsNullOrWhiteSpace(reason))
+                throw new InvalidDomainException("Reject reason cannot be empty.");
+
             Status = ReportStatus.Rejected;
+            ReviewedBy = reviewedBy;
+            ReviewNote = reason;
+        }
+
+        public void AddAttachment(string url, string fileName)
+        {
+            Attachments.Add(new ReportAttachment(url, fileName, Id));
         }
     }
 }

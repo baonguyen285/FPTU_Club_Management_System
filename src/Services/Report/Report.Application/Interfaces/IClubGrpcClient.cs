@@ -6,5 +6,6 @@ namespace Report.Application.Interfaces
     public interface IClubGrpcClient
     {
         Task<bool> CheckClubExistsAsync(Guid clubId);
+        Task<bool> IsClubManagerAsync(Guid clubId, Guid userId);
     }
 }

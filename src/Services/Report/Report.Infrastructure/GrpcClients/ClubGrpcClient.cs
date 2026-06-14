@@ -28,5 +28,23 @@ namespace Report.Infrastructure.GrpcClients
                 return false;
             }
         }
+
+        public async Task<bool> IsClubManagerAsync(Guid clubId, Guid userId)
+        {
+            try
+            {
+                var request = new ClubManagerRequest 
+                { 
+                    ClubId = clubId.ToString(),
+                    UserId = userId.ToString()
+                };
+                var response = await _client.IsClubManagerAsync(request);
+                return response.IsManager;
+            }
+            catch
+            {
+                return false;
+            }
+        }
     }
 }

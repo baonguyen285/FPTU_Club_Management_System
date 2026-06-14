@@ -4,14 +4,22 @@ using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Report.Application.Features.Reports.Commands.SubmitReport;
+using Report.Application.Features.Reports.Commands.CreateReport;
+using Report.Application.Features.Reports.Commands.UpdateReport;
+using Report.Application.Features.Reports.Commands.ReviewReport;
+using Report.Application.Features.Reports.Queries.GetReportsByClub;
+using Report.Application.Features.Reports.Queries.GetReportById;
 using Shared.Kernel.Responses;
 using Shared.Kernel.Exceptions;
+using Report.Domain.Enums;
+using Report.Application.DTOs;
+using System.Collections.Generic;
 
 namespace Report.API.Controllers
 {
     [ApiController]
     [Route("api/v1/[controller]")]
+    [Authorize]
     public class ReportsController : ControllerBase
     {
         private readonly IMediator _mediator;
@@ -21,37 +29,113 @@ namespace Report.API.Controllers
             _mediator = mediator;
         }
 
-        [Authorize]
-        [HttpPost("{id}/submit")]
-        public async Task<IActionResult> SubmitReport(Guid id, [FromBody] SubmitReportRequest request)
+        private Guid GetUserId()
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
             if (userIdClaim == null)
             {
                 throw new UnauthorizedException("User is not authenticated.");
             }
+            return Guid.Parse(userIdClaim.Value);
+        }
 
-            var userId = Guid.Parse(userIdClaim.Value);
-
-            var command = new SubmitReportCommand(
-                reportId: id,
-                clubId: request.ClubId,
-                title: request.Title,
-                content: request.Content,
-                userId: userId
-            );
+        [HttpPost]
+        public async Task<IActionResult> CreateReport([FromBody] CreateReportRequest request)
+        {
+            var command = new CreateReportCommand
+            {
+                ClubId = request.ClubId,
+                Title = request.Title,
+                Content = request.Content,
+                Type = request.Type,
+                CreatedBy = GetUserId(),
+                Attachments = request.Attachments
+            };
 
             var result = await _mediator.Send(command);
+            var response = new ApiResponse<ReportDto>(result, "Report created successfully.");
+            return Ok(response);
+        }
 
-            var response = new ApiResponse<bool>(result, "Report submitted successfully.");
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateReport(Guid id, [FromBody] UpdateReportRequest request)
+        {
+            var command = new UpdateReportCommand
+            {
+                Id = id,
+                Title = request.Title,
+                Content = request.Content,
+                Type = request.Type,
+                UserId = GetUserId()
+            };
+
+            var result = await _mediator.Send(command);
+            var response = new ApiResponse<ReportDto>(result, "Report updated successfully.");
+            return Ok(response);
+        }
+
+        [HttpPut("{id}/review")]
+        public async Task<IActionResult> ReviewReport(Guid id, [FromBody] ReviewReportRequest request)
+        {
+            var command = new ReviewReportCommand
+            {
+                ReportId = id,
+                UserId = GetUserId(),
+                IsApproved = request.IsApproved,
+                ReviewNote = request.ReviewNote
+            };
+
+            var result = await _mediator.Send(command);
+            var action = request.IsApproved ? "approved" : "rejected";
+            var response = new ApiResponse<ReportDto>(result, $"Report {action} successfully.");
+            return Ok(response);
+        }
+
+        [HttpGet("club/{clubId}")]
+        [AllowAnonymous] // Assuming reading is public or change it to [Authorize] if needed. We'll leave it Authorize from controller
+        public async Task<IActionResult> GetReportsByClub(Guid clubId, [FromQuery] ReportStatus? status, [FromQuery] ReportType? type)
+        {
+            var query = new GetReportsByClubQuery
+            {
+                ClubId = clubId,
+                Status = status,
+                Type = type
+            };
+
+            var result = await _mediator.Send(query);
+            var response = new ApiResponse<IEnumerable<ReportDto>>(result, "Fetched reports successfully.");
+            return Ok(response);
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetReportById(Guid id)
+        {
+            var query = new GetReportByIdQuery { Id = id };
+            var result = await _mediator.Send(query);
+            var response = new ApiResponse<ReportDto>(result, "Fetched report successfully.");
             return Ok(response);
         }
     }
 
-    public class SubmitReportRequest
+    public class CreateReportRequest
     {
         public Guid ClubId { get; set; }
-        public string Title { get; set; }
-        public string Content { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Content { get; set; } = string.Empty;
+        public ReportType Type { get; set; }
+        public List<AttachmentInput>? Attachments { get; set; }
+    }
+
+    public class UpdateReportRequest
+    {
+        public string Title { get; set; } = string.Empty;
+        public string Content { get; set; } = string.Empty;
+        public ReportType Type { get; set; }
+    }
+
+    public class ReviewReportRequest
+    {
+        public bool IsApproved { get; set; }
+        public string? ReviewNote { get; set; }
     }
 }
