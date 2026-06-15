@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using System.Threading.Tasks;
 using MediatR;
@@ -119,23 +120,43 @@ namespace Report.API.Controllers
 
     public class CreateReportRequest
     {
+        [Required(ErrorMessage = "Club ID is required")]
         public Guid ClubId { get; set; }
+
+        [Required(ErrorMessage = "Report title is required")]
+        [StringLength(200, MinimumLength = 3, ErrorMessage = "Report title must be between 3 and 200 characters")]
         public string Title { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Report content is required")]
         public string Content { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Report type is required")]
+        [Range(1, 3, ErrorMessage = "Invalid report type (1: Financial, 2: Activity, 3: General)")]
         public ReportType Type { get; set; }
+
         public List<AttachmentInput>? Attachments { get; set; }
     }
 
     public class UpdateReportRequest
     {
+        [Required(ErrorMessage = "Report title is required")]
+        [StringLength(200, MinimumLength = 3, ErrorMessage = "Report title must be between 3 and 200 characters")]
         public string Title { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Report content is required")]
         public string Content { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Report type is required")]
+        [Range(1, 3, ErrorMessage = "Invalid report type (1: Financial, 2: Activity, 3: General)")]
         public ReportType Type { get; set; }
     }
 
     public class ReviewReportRequest
     {
+        [Required(ErrorMessage = "Review approval status is required")]
         public bool IsApproved { get; set; }
+
+        [StringLength(500, ErrorMessage = "Review note cannot exceed 500 characters")]
         public string? ReviewNote { get; set; }
     }
 }

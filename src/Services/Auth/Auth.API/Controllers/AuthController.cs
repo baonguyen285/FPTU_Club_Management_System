@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using System;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using System.Collections.Concurrent;
 using Auth.Domain.Entities;
 using Auth.Application.DTOs;
 using Auth.Application.Services;
@@ -19,6 +20,7 @@ namespace Auth.API.Controllers
     {
         private readonly AuthDbContext _context;
         private readonly IJwtService _jwtService;
+        private static readonly ConcurrentDictionary<string, string> _resetCodes = new();
 
         public AuthController(AuthDbContext context, IJwtService jwtService)
         {
@@ -178,6 +180,77 @@ namespace Auth.API.Controllers
             };
 
             return Ok(new ApiResponse<UserResponse>(responseData, "Get profile details successfully"));
+        }
+
+        [Authorize]
+        [HttpPost("change-password")]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null)
+            {
+                throw new UnauthorizedException("Invalid identity token");
+            }
+
+            var userId = Guid.Parse(userIdClaim.Value);
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null)
+            {
+                throw new NotFoundException("User not found");
+            }
+
+            if (!BCrypt.Net.BCrypt.Verify(request.OldPassword, user.PasswordHash))
+            {
+                throw new BadRequestException("Incorrect old password");
+            }
+
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+            _context.Users.Update(user);
+            await _context.SaveChangesAsync();
+
+            return Ok(new ApiResponse<object>(null, "Password changed successfully"));
+        }
+
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+            if (user == null)
+            {
+                throw new NotFoundException("User with this email not found");
+            }
+
+            var random = new Random();
+            var code = random.Next(100000, 999999).ToString();
+            
+            _resetCodes[request.Email] = code;
+
+            var responseMessage = $"Reset code generated successfully. For testing purposes, your code is: {code}";
+            return Ok(new ApiResponse<string>(code, responseMessage));
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
+        {
+            if (!_resetCodes.TryGetValue(request.Email, out var storedCode) || storedCode != request.ResetCode)
+            {
+                throw new BadRequestException("Invalid or expired reset code");
+            }
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+            if (user == null)
+            {
+                throw new NotFoundException("User not found");
+            }
+
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+            _context.Users.Update(user);
+            
+            _resetCodes.TryRemove(request.Email, out _);
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new ApiResponse<object>(null, "Password reset successfully"));
         }
     }
 }
