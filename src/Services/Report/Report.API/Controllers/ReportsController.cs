@@ -20,7 +20,6 @@ namespace Report.API.Controllers
 {
     [ApiController]
     [Route("api/v1/[controller]")]
-    [Authorize]
     public class ReportsController : ControllerBase
     {
         private readonly IMediator _mediator;
@@ -40,6 +39,7 @@ namespace Report.API.Controllers
             return Guid.Parse(userIdClaim.Value);
         }
 
+        [Authorize(Roles = "ClubManager")]
         [HttpPost]
         public async Task<IActionResult> CreateReport([FromBody] CreateReportRequest request)
         {
@@ -58,6 +58,7 @@ namespace Report.API.Controllers
             return Ok(response);
         }
 
+        [Authorize(Roles = "ClubManager")]
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateReport(Guid id, [FromBody] UpdateReportRequest request)
         {
@@ -75,6 +76,7 @@ namespace Report.API.Controllers
             return Ok(response);
         }
 
+        [Authorize(Roles = "Admin,Advisor")]
         [HttpPut("{id}/review")]
         public async Task<IActionResult> ReviewReport(Guid id, [FromBody] ReviewReportRequest request)
         {
@@ -92,8 +94,8 @@ namespace Report.API.Controllers
             return Ok(response);
         }
 
+        [Authorize(Roles = "Admin,Advisor,ClubManager")]
         [HttpGet("club/{clubId}")]
-        [AllowAnonymous] // Assuming reading is public or change it to [Authorize] if needed. We'll leave it Authorize from controller
         public async Task<IActionResult> GetReportsByClub(Guid clubId, [FromQuery] ReportStatus? status, [FromQuery] ReportType? type)
         {
             var query = new GetReportsByClubQuery
@@ -108,6 +110,7 @@ namespace Report.API.Controllers
             return Ok(response);
         }
 
+        [Authorize(Roles = "Admin,Advisor,ClubManager")]
         [HttpGet("{id}")]
         public async Task<IActionResult> GetReportById(Guid id)
         {

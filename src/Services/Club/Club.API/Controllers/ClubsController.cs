@@ -47,7 +47,7 @@ namespace Club.API.Controllers
             return Ok(new ApiResponse<object>(result, "Retrieved club successfully."));
         }
 
-        [Authorize]
+        [Authorize(Roles = "Admin,Advisor")]
         [HttpPost]
         public async Task<IActionResult> CreateClub([FromBody] CreateClubCommand command)
         {
@@ -55,7 +55,7 @@ namespace Club.API.Controllers
             return Ok(new ApiResponse<object>(result, "Club created successfully."));
         }
 
-        [Authorize]
+        [Authorize(Roles = "Admin,ClubManager")]
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateClub(Guid id, [FromBody] UpdateClubCommand command)
         {
@@ -64,7 +64,7 @@ namespace Club.API.Controllers
             return Ok(new ApiResponse<object>(result, "Club updated successfully."));
         }
 
-        [Authorize]
+        [Authorize(Roles = "Admin,Advisor")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteClub(Guid id)
         {
@@ -83,7 +83,7 @@ namespace Club.API.Controllers
             return Ok(new ApiResponse<object>(result, "Retrieved club members successfully."));
         }
 
-        [Authorize]
+        [Authorize(Roles = "Student")]
         [HttpPost("{id}/members")]
         public async Task<IActionResult> JoinClub(Guid id)
         {
@@ -100,7 +100,7 @@ namespace Club.API.Controllers
             return Ok(new ApiResponse<object>(result, "Joined club successfully."));
         }
 
-        [Authorize]
+        [Authorize(Roles = "Admin,ClubManager")]
         [HttpPut("{id}/members/{userId}/role")]
         public async Task<IActionResult> UpdateMemberRole(Guid id, Guid userId, [FromBody] UpdateMemberRoleCommand command)
         {
@@ -110,7 +110,7 @@ namespace Club.API.Controllers
             return Ok(new ApiResponse<object>(result, "Member role updated successfully."));
         }
 
-        [Authorize]
+        [Authorize(Roles = "Admin,ClubManager")]
         [HttpDelete("{id}/members/{userId}")]
         public async Task<IActionResult> RemoveMember(Guid id, Guid userId)
         {

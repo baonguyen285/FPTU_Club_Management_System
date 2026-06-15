@@ -31,7 +31,7 @@ namespace Club.API.Controllers
             return Ok(new ApiResponse<object>(result, "Retrieved events successfully."));
         }
 
-        [Authorize]
+        [Authorize(Roles = "Admin,ClubManager")]
         [HttpPost]
         public async Task<IActionResult> CreateEvent([FromBody] CreateEventCommand command)
         {
@@ -39,7 +39,7 @@ namespace Club.API.Controllers
             return Ok(new ApiResponse<object>(result, "Event created successfully."));
         }
 
-        [Authorize]
+        [Authorize(Roles = "Admin,ClubManager")]
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateEvent(Guid id, [FromBody] UpdateEventCommand command)
         {
@@ -51,7 +51,7 @@ namespace Club.API.Controllers
         /// <summary>
         /// Xóa mềm sự kiện (hủy sự kiện - giữ lại lịch sử)
         /// </summary>
-        [Authorize]
+        [Authorize(Roles = "Admin,ClubManager")]
         [HttpDelete("{id}/cancel")]
         public async Task<IActionResult> SoftDeleteEvent(Guid id)
         {
@@ -63,7 +63,7 @@ namespace Club.API.Controllers
         /// <summary>
         /// Xóa vĩnh viễn sự kiện khỏi Database
         /// </summary>
-        [Authorize]
+        [Authorize(Roles = "Admin,ClubManager")]
         [HttpDelete("{id}/permanent")]
         public async Task<IActionResult> HardDeleteEvent(Guid id)
         {
