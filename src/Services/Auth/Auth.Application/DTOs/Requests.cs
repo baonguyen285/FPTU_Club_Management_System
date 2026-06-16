@@ -19,8 +19,6 @@ namespace Auth.Application.DTOs
 
         [Required(ErrorMessage = "Full name is required")]
         public string FullName { get; set; }
-
-        public string Role { get; set; } = "Student";
     }
 
     public class LoginRequest

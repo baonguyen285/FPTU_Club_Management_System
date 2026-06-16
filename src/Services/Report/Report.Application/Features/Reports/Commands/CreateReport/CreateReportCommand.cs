@@ -30,15 +30,31 @@ namespace Report.Application.Features.Reports.Commands.CreateReport
     {
         private readonly IReportUnitOfWork _uow;
         private readonly IEventPublisher _eventPublisher;
+        private readonly IClubGrpcClient _grpcClient;
 
-        public CreateReportCommandHandler(IReportUnitOfWork uow, IEventPublisher eventPublisher)
+        public CreateReportCommandHandler(IReportUnitOfWork uow, IEventPublisher eventPublisher, IClubGrpcClient grpcClient)
         {
             _uow = uow;
             _eventPublisher = eventPublisher;
+            _grpcClient = grpcClient;
         }
 
         public async Task<ReportDto> Handle(CreateReportCommand request, CancellationToken cancellationToken)
         {
+            // Verify if club exists via gRPC
+            var clubExists = await _grpcClient.CheckClubExistsAsync(request.ClubId);
+            if (!clubExists)
+            {
+                throw new NotFoundException($"Club with ID {request.ClubId} does not exist.");
+            }
+
+            // Verify if creator is the manager/president of the club via gRPC
+            bool isManager = await _grpcClient.IsClubManagerAsync(request.ClubId, request.CreatedBy);
+            if (!isManager)
+            {
+                throw new UnauthorizedException("You do not have permission to submit reports for this club.");
+            }
+
             var report = new Domain.Entities.Report(
                 request.ClubId,
                 request.Title,

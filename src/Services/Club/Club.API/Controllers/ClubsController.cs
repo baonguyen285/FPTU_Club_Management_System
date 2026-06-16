@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Club.Application.Features.Clubs.Commands.CreateClub;
 using Club.Application.Features.Clubs.Commands.UpdateClub;
 using Club.Application.Features.Clubs.Commands.DeleteClub;
+using Club.Application.Features.Clubs.Commands.ReviewClub;
 using Club.Application.Features.Clubs.Queries.GetClubs;
 using Club.Application.Features.Clubs.Queries.GetClubById;
 using Club.Application.Features.Members.Commands.JoinClub;
@@ -71,6 +72,15 @@ namespace Club.API.Controllers
             var command = new DeleteClubCommand(id);
             await _mediator.Send(command);
             return Ok(new ApiResponse<object>(null, "Club deactivated successfully (soft delete)."));
+        }
+
+        [Authorize(Roles = "Admin,Advisor")]
+        [HttpPut("{id}/review")]
+        public async Task<IActionResult> ReviewClub(Guid id, [FromBody] ReviewClubCommand command)
+        {
+            command.Id = id;
+            var result = await _mediator.Send(command);
+            return Ok(new ApiResponse<object>(result, "Club reviewed successfully."));
         }
 
         // ==================== MEMBER APIs ====================

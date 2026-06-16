@@ -46,6 +46,10 @@ Club Service được xây dựng theo **Clean Architecture**, bao gồm 4 tần
 - **Mô tả**: Đánh dấu CLB ngừng hoạt động (`IsActive = false`) thay vì xóa mất dữ liệu.
 - **Luồng hoạt động**: `DeleteClubCommand` ➡️ `IUnitOfWork.Clubs.Update()`
 
+#### 6. Phê duyệt/Thay đổi trạng thái CLB (PUT `/api/v1/clubs/{id}/review`) - Chỉ Admin, Advisor
+- **Mô tả**: Duyệt câu lạc bộ mới tạo (PendingApproval -> Active) hoặc thay đổi trạng thái hoạt động (Active, Suspended, Inactive).
+- **Luồng hoạt động**: `ReviewClubCommand` ➡️ `IUnitOfWork.Clubs.Update()`
+
 ### B. Nhóm chức năng Thành viên (Members)
 
 #### 1. Đăng ký tham gia CLB (POST `/api/v1/clubs/{id}/members`) - Cần đăng nhập

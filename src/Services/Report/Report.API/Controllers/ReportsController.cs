@@ -76,7 +76,7 @@ namespace Report.API.Controllers
             return Ok(response);
         }
 
-        [Authorize(Roles = "Admin,Advisor")]
+        [Authorize(Roles = "Admin,ClubManager")]
         [HttpPut("{id}/review")]
         public async Task<IActionResult> ReviewReport(Guid id, [FromBody] ReviewReportRequest request)
         {
