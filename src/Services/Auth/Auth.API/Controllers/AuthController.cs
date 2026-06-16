@@ -35,21 +35,13 @@ namespace Auth.API.Controllers
             {
                 throw new BadRequestException("Email already exists");
             }
-
-            var allowedRoles = new[] { "Admin", "Advisor", "ClubManager", "Student" };
-            var role = request.Role;
-            if (Array.IndexOf(allowedRoles, role) < 0)
-            {
-                role = "Student";
-            }
-
             var user = new User
             {
                 Id = Guid.NewGuid(),
                 Email = request.Email,
                 FullName = request.FullName,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-                Role = role,
+                Role = "Student",
                 IsActive = true
             };
 

@@ -56,6 +56,30 @@ namespace Club.Infrastructure.Persistence
                     IsActive = true
                 }
             );
+
+            // Seeding default club members
+            modelBuilder.Entity<Club.Domain.Entities.ClubMember>().HasData(
+                new Club.Domain.Entities.ClubMember
+                {
+                    Id = Guid.Parse("55555555-5555-5555-5555-555555555555"),
+                    ClubId = Guid.Parse("99999999-9999-9999-9999-999999999999"),
+                    UserId = Guid.Parse("33333333-3333-3333-3333-333333333333"), // manager1 ID
+                    Role = Club.Domain.Enums.ClubRole.President,
+                    Status = Club.Domain.Enums.MembershipStatus.Approved,
+                    JoinedAt = new DateTime(2025, 5, 20, 0, 0, 0, DateTimeKind.Utc),
+                    IsActive = true
+                },
+                new Club.Domain.Entities.ClubMember
+                {
+                    Id = Guid.Parse("66666666-6666-6666-6666-666666666666"),
+                    ClubId = Guid.Parse("99999999-9999-9999-9999-999999999999"),
+                    UserId = Guid.Parse("44444444-4444-4444-4444-444444444444"), // student1 ID
+                    Role = Club.Domain.Enums.ClubRole.Member,
+                    Status = Club.Domain.Enums.MembershipStatus.Approved,
+                    JoinedAt = new DateTime(2025, 5, 20, 0, 0, 0, DateTimeKind.Utc),
+                    IsActive = true
+                }
+            );
         }
     }
 }
