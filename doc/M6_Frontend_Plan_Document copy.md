@@ -39,14 +39,20 @@ Vì đây là hệ thống quản lý câu lạc bộ của môi trường FPTU 
 - **Thiết kế:** Split-screen (chia đôi màn hình), một bên là hình ảnh sự kiện CLB sôi động, một bên là Form đăng nhập kính mờ.
 
 ### 2. Bảng điều khiển (Dashboard / Clubs)
-- **Chức năng:** Gửi yêu cầu tới `GET /gateway/clubs/`. Hiển thị danh sách câu lạc bộ dưới dạng Grid Cards.
-- **Thiết kế:** Mỗi Card có Logo CLB, tên, số lượng thành viên. Bấm vào Card để xem chi tiết.
+- **Chức năng:** Gửi yêu cầu tới `GET /gateway/clubs`. Hiển thị danh sách câu lạc bộ dưới dạng Grid Cards.
+- **Thiết kế:** Mỗi Card có Logo CLB, tên, số lượng thành viên. Bấm vào Card để xem chi tiết. Đối với Học sinh, chỉ hiển thị các câu lạc bộ hoạt động (`status: 1`).
 
-### 3. Màn hình Báo cáo (Report Management)
+### 3. Màn hình Quản lý & Phê duyệt Câu lạc bộ (Clubs & Member Management)
+- **Chức năng:**
+  - Với **Admin / Cố vấn (Advisor)**: Xem danh sách CLB chờ duyệt (`status == 0`). Thực hiện duyệt (`PUT /gateway/clubs/{id}/review` gửi `{ "status": 1 }`) hoặc từ chối (`PUT /gateway/clubs/{id}/review` gửi `{ "status": 3 }`).
+  - Với **Chủ nhiệm (ClubManager)**: Xem danh sách thành viên đang chờ duyệt đơn vào CLB, thực hiện duyệt (`PUT /gateway/clubs/{id}/members/{userId}/role`) hoặc loại bỏ thành viên (`DELETE /gateway/clubs/{id}/members/{userId}`).
+- **Thiết kế:** Dashboard quản lý trực quan với các tab bộ lọc trạng thái rõ ràng (Chờ duyệt, Đang hoạt động, Đã từ chối/Khóa).
+
+### 4. Màn hình Báo cáo (Report Management)
 - **Chức năng:** Form cho phép nhập Title, Content, Type. Gọi `POST /gateway/reports`.
 - **Thiết kế:** Trình soạn thảo văn bản nhìn sạch sẽ. Một bảng danh sách hiển thị các báo cáo đã nộp kèm Status (Pending, Approved).
 
-### 4. Hệ thống Thông báo (Notification)
+### 5. Hệ thống Thông báo (Notification)
 - **Chức năng:** Tích hợp SignalR vào Frontend (`@microsoft/signalr`). Khi Server có biến, trình duyệt sẽ nhận được chuỗi JSON.
 - **Thiết kế:** Một cái Icon Cái Chuông (Bell) ở góc trên bên phải màn hình. Khi có thông báo, chuông sẽ lắc (CSS Animation), hiển thị con số màu đỏ. Đồng thời có một Toast Notification (giống thông báo của Facebook) trượt ra từ góc dưới màn hình.
 
@@ -57,6 +63,6 @@ Vì đây là hệ thống quản lý câu lạc bộ của môi trường FPTU 
 2. **Cấu hình Axios / Fetch API:** Viết file cấu hình gốc để mọi request gửi đi đều tự động đính kèm `Bearer Token` vào Header. Tất cả request đều bắn về **Cổng 5000** (API Gateway).
 3. **Làm màn Auth trước:** Xây form Đăng nhập, lưu Token, điều hướng người dùng sang trang Chủ.
 4. **Lắp ráp SignalR:** Ngay khi vào trang Chủ, khởi tạo kết nối WebSocket với `/gateway/hubs/notification`.
-5. **Hoàn thiện các màn hình còn lại:** Làm tính năng hiển thị Club và Form Report.
+5. **Hoàn thiện các màn hình còn lại:** Làm tính năng hiển thị Club, Quản lý & Phê duyệt CLB/Thành viên, và Form Report.
 
 Chúc các bạn code vui vẻ ở Milestone cuối cùng!

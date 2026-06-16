@@ -33,4 +33,11 @@ Khi SignalR nhận sự kiện ReceiveNotification, làm hiệu ứng chuông ru
 
 Cho phép người dùng điền thông tin: ClubId (chuỗi Guid), Title, Content, Type.
 Submit gọi API POST http://localhost:5000/gateway/reports đính kèm Header Authorization: Bearer {token}.
-Hãy đóng vai một chuyên gia Web Frontend lão luyện. Lên kế hoạch cấu trúc thư mục (HTML/CSS/JS) cho tôi và bắt đầu tạo cho tôi file index.html (Màn hình Đăng nhập) kèm CSS đẹp nhất có thể nhé!
+
+👉 Bước 4: Màn hình Quản lý & Phê duyệt Câu lạc bộ (Clubs & Members)
+
+- Đối với **Admin / Cố vấn (Advisor)**: Có màn hình xem danh sách các CLB chờ duyệt (`status == 0`). Thực hiện Phê duyệt hoặc Từ chối bằng cách gọi `PUT http://localhost:5000/gateway/clubs/{id}/review` (gửi kèm body `{ "status": 1 }` để duyệt hoặc `{ "status": 3 }` để từ chối).
+- Đối với **Học sinh (Student)**: Có màn hình đăng ký tạo CLB mới (`POST http://localhost:5000/gateway/clubs`), xem danh sách CLB hoạt động (`status == 1`) và gửi yêu cầu tham gia CLB (`POST http://localhost:5000/gateway/clubs/{id}/members`).
+- Đối với **Chủ nhiệm (ClubManager)**: Có trang quản lý thành viên để phê duyệt đơn xin gia nhập (`PUT http://localhost:5000/gateway/clubs/{id}/members/{userId}/role`) hoặc xóa/cho rời CLB (`DELETE http://localhost:5000/gateway/clubs/{id}/members/{userId}`).
+
+Hãy đóng vai một chuyên gia Web Frontend lão luyện. Lên kế hoạch cấu trúc thư mục (HTML/CSS/JS) cho tôi và bắt đầu tạo cho tôi các trang khung kèm CSS đẹp nhất có thể nhé!
