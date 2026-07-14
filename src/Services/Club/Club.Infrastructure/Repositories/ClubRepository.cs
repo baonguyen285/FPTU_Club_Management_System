@@ -59,6 +59,13 @@ namespace Club.Infrastructure.Repositories
                 .ToListAsync();
         }
 
+        public async Task<IEnumerable<ClubMember>> GetMembersByUserAsync(Guid userId)
+        {
+            return await _context.ClubMembers
+                .Where(m => m.UserId == userId)
+                .ToListAsync();
+        }
+
         public async Task AddMemberAsync(ClubMember member)
         {
             await _context.ClubMembers.AddAsync(member);

@@ -37,16 +37,58 @@ builder.Services.AddAuthentication(options =>
 
 // Add Ocelot Services
 builder.Services.AddOcelot();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("Frontend", policy =>
+    {
+        policy
+            .WithOrigins("http://localhost:5173", "http://127.0.0.1:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
+});
 
 var app = builder.Build();
 
 app.UseRouting();
 
+app.UseCors("Frontend");
 app.UseAuthentication();
 app.UseAuthorization();
 
 // Enable WebSockets for SignalR
 app.UseWebSockets();
+
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path.Value;
+    if (path is "/health" or "/gateway/health")
+    {
+        await Results.Ok(new { status = "OK", service = "api-gateway", timestamp = DateTime.UtcNow })
+            .ExecuteAsync(context);
+        return;
+    }
+
+    if (path != null &&
+        (path.StartsWith("/gateway/finance", StringComparison.OrdinalIgnoreCase) ||
+         path.StartsWith("/gateway/dashboard", StringComparison.OrdinalIgnoreCase)))
+    {
+        await Results.Json(new
+        {
+            success = false,
+            message = "Chuc nang chua duoc phat trien.",
+            statusCode = StatusCodes.Status501NotImplemented,
+            data = (object?)null,
+            errors = new[] { "Backend API for this module is not implemented yet." },
+            meta = (object?)null,
+            traceId = context.TraceIdentifier
+        }, statusCode: StatusCodes.Status501NotImplemented).ExecuteAsync(context);
+        return;
+    }
+
+    await next();
+});
 
 // Setup Ocelot
 await app.UseOcelot();

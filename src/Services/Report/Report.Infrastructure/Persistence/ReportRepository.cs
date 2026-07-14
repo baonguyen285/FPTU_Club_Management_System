@@ -22,14 +22,14 @@ namespace Report.Infrastructure.Persistence
         {
             return await _context.Reports
                 .Include(r => r.Attachments)
-                .FirstOrDefaultAsync(r => r.Id == id);
+                .FirstOrDefaultAsync(r => r.Id == id && r.IsActive);
         }
 
         public async Task<IEnumerable<Domain.Entities.Report>> GetReportsByClubAsync(Guid clubId, ReportStatus? status, ReportType? type)
         {
             var query = _context.Reports.AsQueryable();
 
-            query = query.Where(r => r.ClubId == clubId);
+            query = query.Where(r => r.ClubId == clubId && r.IsActive);
 
             if (status.HasValue)
             {

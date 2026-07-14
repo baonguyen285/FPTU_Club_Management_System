@@ -5,12 +5,14 @@ using System.Text;
 using Auth.Infrastructure.Persistence;
 using Auth.Application.Services;
 using Auth.Infrastructure.Services;
+using Shared.Kernel.Extensions;
 using Shared.Kernel.Middlewares;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers();
+builder.Services.AddStandardApiBehavior();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -74,6 +76,7 @@ builder.Services.AddAuthentication(options =>
 
 // Configure Dependency Injection for JWT Service
 builder.Services.AddScoped<IJwtService, JwtService>();
+builder.Services.AddHttpClient<IEmailSender, BrevoEmailSender>();
 
 var app = builder.Build();
 
@@ -89,6 +92,7 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapGet("/health", () => Results.Ok(new { status = "OK", service = "auth-service", timestamp = DateTime.UtcNow }));
 app.MapControllers();
 
 // Auto migration
@@ -99,6 +103,22 @@ using (var scope = app.Services.CreateScope())
     {
         var context = services.GetRequiredService<AuthDbContext>();
         context.Database.EnsureCreated();
+        context.Database.ExecuteSqlRaw(@"
+IF COL_LENGTH('Users', 'IsEmailVerified') IS NULL
+    ALTER TABLE Users ADD IsEmailVerified bit NOT NULL CONSTRAINT DF_Users_IsEmailVerified DEFAULT(1);
+
+IF COL_LENGTH('Users', 'EmailVerificationCode') IS NULL
+    ALTER TABLE Users ADD EmailVerificationCode nvarchar(20) NULL;
+
+IF COL_LENGTH('Users', 'EmailVerificationCodeExpiresAt') IS NULL
+    ALTER TABLE Users ADD EmailVerificationCodeExpiresAt datetime2 NULL;
+
+IF COL_LENGTH('Users', 'ResetPasswordCode') IS NULL
+    ALTER TABLE Users ADD ResetPasswordCode nvarchar(20) NULL;
+
+IF COL_LENGTH('Users', 'ResetPasswordCodeExpiresAt') IS NULL
+    ALTER TABLE Users ADD ResetPasswordCodeExpiresAt datetime2 NULL;
+");
     }
     catch (Exception ex)
     {

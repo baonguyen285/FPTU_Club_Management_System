@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Report.Application.Features.Reports.Commands.CreateReport;
 using Report.Application.Features.Reports.Commands.UpdateReport;
 using Report.Application.Features.Reports.Commands.ReviewReport;
+using Report.Application.Features.Reports.Commands.DeleteReport;
 using Report.Application.Features.Reports.Queries.GetReportsByClub;
 using Report.Application.Features.Reports.Queries.GetReportById;
 using Shared.Kernel.Responses;
@@ -76,7 +77,7 @@ namespace Report.API.Controllers
             return Ok(response);
         }
 
-        [Authorize(Roles = "Admin,ClubManager")]
+        [Authorize(Roles = "Admin,Advisor")]
         [HttpPut("{id}/review")]
         public async Task<IActionResult> ReviewReport(Guid id, [FromBody] ReviewReportRequest request)
         {
@@ -118,6 +119,20 @@ namespace Report.API.Controllers
             var result = await _mediator.Send(query);
             var response = new ApiResponse<ReportDto>(result, "Fetched report successfully.");
             return Ok(response);
+        }
+
+        [Authorize(Roles = "Admin,Advisor,ClubManager")]
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteReport(Guid id)
+        {
+            var command = new DeleteReportCommand
+            {
+                Id = id,
+                UserId = GetUserId()
+            };
+
+            await _mediator.Send(command);
+            return Ok(new ApiResponse<object>(null, "Report deleted successfully."));
         }
     }
 

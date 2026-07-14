@@ -8,6 +8,7 @@ using Club.Application.Features.Events.Commands.UpdateEvent;
 using Club.Application.Features.Events.Commands.SoftDeleteEvent;
 using Club.Application.Features.Events.Commands.HardDeleteEvent;
 using Club.Application.Features.Events.Queries.GetEventsByClub;
+using Club.Application.Features.Events.Queries.GetEventById;
 using Shared.Kernel.Responses;
 
 namespace Club.API.Controllers
@@ -29,6 +30,14 @@ namespace Club.API.Controllers
             var query = new GetEventsByClubQuery(clubId);
             var result = await _mediator.Send(query);
             return Ok(new ApiResponse<object>(result, "Retrieved events successfully."));
+        }
+
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetEventById(Guid id)
+        {
+            var query = new GetEventByIdQuery { Id = id };
+            var result = await _mediator.Send(query);
+            return Ok(new ApiResponse<object>(result, "Retrieved event successfully."));
         }
 
         [Authorize(Roles = "Admin,ClubManager")]

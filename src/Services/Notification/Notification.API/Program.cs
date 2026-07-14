@@ -13,6 +13,7 @@ using Notification.Infrastructure.Hubs;
 using Notification.Infrastructure.Persistence;
 using Notification.Application.Interfaces;
 using Notification.Application.Mappings;
+using Shared.Kernel.Extensions;
 using Shared.Kernel.Middlewares;
 using Microsoft.OpenApi.Models;
 
@@ -20,6 +21,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // 1. Add Controllers & Swagger
 builder.Services.AddControllers();
+builder.Services.AddStandardApiBehavior();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -138,6 +140,7 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapGet("/health", () => Results.Ok(new { status = "OK", service = "notification-service", timestamp = DateTime.UtcNow }));
 app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notification");
 

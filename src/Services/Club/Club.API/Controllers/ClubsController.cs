@@ -10,9 +10,12 @@ using Club.Application.Features.Clubs.Commands.ReviewClub;
 using Club.Application.Features.Clubs.Queries.GetClubs;
 using Club.Application.Features.Clubs.Queries.GetClubById;
 using Club.Application.Features.Members.Commands.JoinClub;
+using Club.Application.Features.Members.Commands.ApproveMember;
+using Club.Application.Features.Members.Commands.RejectMember;
 using Club.Application.Features.Members.Commands.UpdateMemberRole;
 using Club.Application.Features.Members.Commands.RemoveMember;
 using Club.Application.Features.Members.Queries.GetClubMembers;
+using Club.Application.Features.Members.Queries.GetMyMemberships;
 using Shared.Kernel.Responses;
 using System.Security.Claims;
 using Shared.Kernel.Exceptions;
@@ -93,6 +96,21 @@ namespace Club.API.Controllers
             return Ok(new ApiResponse<object>(result, "Retrieved club members successfully."));
         }
 
+        [Authorize]
+        [HttpGet("my-memberships")]
+        public async Task<IActionResult> GetMyMemberships()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null)
+            {
+                throw new UnauthorizedException("User is not authenticated.");
+            }
+
+            var query = new GetMyMembershipsQuery { UserId = Guid.Parse(userIdClaim.Value) };
+            var result = await _mediator.Send(query);
+            return Ok(new ApiResponse<object>(result, "Retrieved memberships successfully."));
+        }
+
         [Authorize(Roles = "Student")]
         [HttpPost("{id}/members")]
         public async Task<IActionResult> JoinClub(Guid id)
@@ -108,6 +126,24 @@ namespace Club.API.Controllers
             
             var result = await _mediator.Send(command);
             return Ok(new ApiResponse<object>(result, "Joined club successfully."));
+        }
+
+        [Authorize(Roles = "Admin,ClubManager")]
+        [HttpPut("{id}/members/{userId}/approve")]
+        public async Task<IActionResult> ApproveMember(Guid id, Guid userId)
+        {
+            var command = new ApproveMemberCommand { ClubId = id, UserId = userId };
+            var result = await _mediator.Send(command);
+            return Ok(new ApiResponse<object>(result, "Member approved successfully."));
+        }
+
+        [Authorize(Roles = "Admin,ClubManager")]
+        [HttpPut("{id}/members/{userId}/reject")]
+        public async Task<IActionResult> RejectMember(Guid id, Guid userId)
+        {
+            var command = new RejectMemberCommand { ClubId = id, UserId = userId };
+            await _mediator.Send(command);
+            return Ok(new ApiResponse<object>(null, "Member rejected successfully."));
         }
 
         [Authorize(Roles = "Admin,ClubManager")]

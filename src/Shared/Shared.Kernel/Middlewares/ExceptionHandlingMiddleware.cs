@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Shared.Kernel.Exceptions;
 using Shared.Kernel.Responses;
 
@@ -11,10 +13,14 @@ namespace Shared.Kernel.Middlewares
     public class ExceptionHandlingMiddleware
     {
         private readonly RequestDelegate _next;
+        private readonly ILogger<ExceptionHandlingMiddleware> _logger;
+        private readonly IHostEnvironment _environment;
 
-        public ExceptionHandlingMiddleware(RequestDelegate next)
+        public ExceptionHandlingMiddleware(RequestDelegate next, ILogger<ExceptionHandlingMiddleware> logger, IHostEnvironment environment)
         {
             _next = next;
+            _logger = logger;
+            _environment = environment;
         }
 
         public async Task InvokeAsync(HttpContext context)
@@ -25,11 +31,11 @@ namespace Shared.Kernel.Middlewares
             }
             catch (Exception ex)
             {
-                await HandleExceptionAsync(context, ex);
+                await HandleExceptionAsync(context, ex, _logger, _environment);
             }
         }
 
-        private static Task HandleExceptionAsync(HttpContext context, Exception exception)
+        private static Task HandleExceptionAsync(HttpContext context, Exception exception, ILogger logger, IHostEnvironment environment)
         {
             context.Response.ContentType = "application/json";
             
@@ -47,11 +53,19 @@ namespace Shared.Kernel.Middlewares
             };
 
             context.Response.StatusCode = statusCode;
+            logger.LogError(exception, "Unhandled request error. TraceId: {TraceId}", context.TraceIdentifier);
+
+            var errors = new List<string>();
+            if (environment.IsDevelopment())
+            {
+                errors.Add(exception.InnerException?.Message ?? exception.Message);
+            }
 
             var response = new ApiResponse<object>(
                 statusCode: statusCode,
                 message: exception.Message,
-                errors: new List<string> { exception.InnerException?.Message ?? exception.StackTrace }
+                errors: errors,
+                traceId: context.TraceIdentifier
             );
 
             var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };

@@ -4,6 +4,7 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Club.Infrastructure.Persistence;
 using Club.API.GrpcServices;
+using Shared.Kernel.Extensions;
 using Shared.Kernel.Middlewares;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -23,6 +24,7 @@ builder.WebHost.ConfigureKestrel(options =>
 
 // Add services to the container.
 builder.Services.AddControllers();
+builder.Services.AddStandardApiBehavior();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -109,6 +111,7 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapGet("/health", () => Results.Ok(new { status = "OK", service = "club-service", timestamp = DateTime.UtcNow }));
 app.MapControllers();
 
 // Map gRPC Services

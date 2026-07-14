@@ -1,5 +1,3 @@
-version: '3.8'
-
 networks:
   fptu-network:
     driver: bridge
@@ -51,6 +49,9 @@ services:
       - JwtSettings__SecretKey=your-super-secret-key-min-32-chars!!
       - JwtSettings__Issuer=fptu-club-system
       - JwtSettings__Audience=fptu-club-clients
+      - Brevo__ApiKey=${BREVO_API_KEY:-}
+      - Brevo__SenderEmail=${BREVO_SENDER_EMAIL:-no-reply@fptu-club.local}
+      - Brevo__SenderName=${BREVO_SENDER_NAME:-FPTU Club}
     ports:
       - "5001:8080"
     depends_on:

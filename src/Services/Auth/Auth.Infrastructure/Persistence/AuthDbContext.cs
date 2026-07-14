@@ -24,6 +24,8 @@ namespace Auth.Infrastructure.Persistence
                 entity.Property(e => e.Email).IsRequired().HasMaxLength(150);
                 entity.Property(e => e.FullName).IsRequired().HasMaxLength(100);
                 entity.Property(e => e.Role).IsRequired().HasMaxLength(50);
+                entity.Property(e => e.EmailVerificationCode).HasMaxLength(20);
+                entity.Property(e => e.ResetPasswordCode).HasMaxLength(20);
             });
 
             modelBuilder.Entity<RefreshToken>(entity =>
@@ -49,6 +51,7 @@ namespace Auth.Infrastructure.Persistence
                     FullName = "BQL CLB FPTU (Admin)",
                     Role = "Admin",
                     IsActive = true,
+                    IsEmailVerified = true,
                     CreatedAt = new DateTime(2025, 5, 20, 0, 0, 0, DateTimeKind.Utc)
                 },
                 new User
@@ -59,6 +62,7 @@ namespace Auth.Infrastructure.Persistence
                     FullName = "Nguyen Van A (Cố vấn)",
                     Role = "Advisor",
                     IsActive = true,
+                    IsEmailVerified = true,
                     CreatedAt = new DateTime(2025, 5, 20, 0, 0, 0, DateTimeKind.Utc)
                 },
                 new User
@@ -69,6 +73,7 @@ namespace Auth.Infrastructure.Persistence
                     FullName = "Tran Thi B (Trưởng CLB)",
                     Role = "ClubManager",
                     IsActive = true,
+                    IsEmailVerified = true,
                     CreatedAt = new DateTime(2025, 5, 20, 0, 0, 0, DateTimeKind.Utc)
                 },
                 new User
@@ -79,6 +84,7 @@ namespace Auth.Infrastructure.Persistence
                     FullName = "Le Van C (Thành viên)",
                     Role = "Student",
                     IsActive = true,
+                    IsEmailVerified = true,
                     CreatedAt = new DateTime(2025, 5, 20, 0, 0, 0, DateTimeKind.Utc)
                 }
             );

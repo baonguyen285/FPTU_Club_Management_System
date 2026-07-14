@@ -11,6 +11,7 @@ namespace Report.Infrastructure.Persistence
 
         public DbSet<Report.Domain.Entities.Report> Reports { get; set; }
         public DbSet<ReportAttachment> ReportAttachments { get; set; }
+        public DbSet<KpiRule> KpiRules { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -35,6 +36,14 @@ namespace Report.Infrastructure.Persistence
                 entity.HasKey(e => e.Id);
                 entity.Property(e => e.Url).IsRequired().HasMaxLength(500);
                 entity.Property(e => e.FileName).IsRequired().HasMaxLength(255);
+            });
+
+            modelBuilder.Entity<KpiRule>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Name).IsRequired().HasMaxLength(150);
+                entity.Property(e => e.Description).HasMaxLength(500);
+                entity.Property(e => e.Weight).HasColumnType("decimal(5,2)");
             });
         }
     }

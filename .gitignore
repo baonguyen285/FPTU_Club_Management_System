@@ -45,3 +45,4 @@ desktop.ini
 
 ## Local settings
 *.local.json
+.env

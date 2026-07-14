@@ -15,6 +15,7 @@ namespace Club.Application.Interfaces
 
         Task<ClubMember?> GetMemberAsync(Guid clubId, Guid userId);
         Task<IEnumerable<ClubMember>> GetMembersByClubAsync(Guid clubId);
+        Task<IEnumerable<ClubMember>> GetMembersByUserAsync(Guid userId);
         Task AddMemberAsync(ClubMember member);
         void UpdateMember(ClubMember member);
         void DeleteMember(ClubMember member);

@@ -10,11 +10,13 @@ using Report.Infrastructure.Persistence;
 using Report.Infrastructure.GrpcClients;
 using Report.Infrastructure.EventBus;
 using Shared.Kernel.Grpc;
+using Shared.Kernel.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddControllers();
+builder.Services.AddStandardApiBehavior();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -117,6 +119,7 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 
+app.MapGet("/health", () => Results.Ok(new { status = "OK", service = "report-service", timestamp = DateTime.UtcNow }));
 app.MapControllers();
 
 // Auto migration
@@ -127,6 +130,21 @@ using (var scope = app.Services.CreateScope())
     {
         var context = services.GetRequiredService<ReportDbContext>();
         context.Database.EnsureCreated();
+        context.Database.ExecuteSqlRaw(@"
+IF OBJECT_ID('KpiRules', 'U') IS NULL
+BEGIN
+    CREATE TABLE KpiRules (
+        Id uniqueidentifier NOT NULL PRIMARY KEY,
+        CreatedAt datetime2 NOT NULL,
+        UpdatedAt datetime2 NULL,
+        IsActive bit NOT NULL,
+        Name nvarchar(150) NOT NULL,
+        Description nvarchar(500) NOT NULL,
+        MaxPoints int NOT NULL,
+        Weight decimal(5,2) NOT NULL
+    );
+END
+");
     }
     catch (Exception ex)
     {

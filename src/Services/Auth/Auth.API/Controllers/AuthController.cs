@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Authorization;
 using System;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using System.Collections.Concurrent;
 using Auth.Domain.Entities;
 using Auth.Application.DTOs;
 using Auth.Application.Services;
@@ -20,32 +19,44 @@ namespace Auth.API.Controllers
     {
         private readonly AuthDbContext _context;
         private readonly IJwtService _jwtService;
-        private static readonly ConcurrentDictionary<string, string> _resetCodes = new();
+        private readonly IEmailSender _emailSender;
 
-        public AuthController(AuthDbContext context, IJwtService jwtService)
+        public AuthController(AuthDbContext context, IJwtService jwtService, IEmailSender emailSender)
         {
             _context = context;
             _jwtService = jwtService;
+            _emailSender = emailSender;
         }
 
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterRequest request)
         {
-            if (await _context.Users.AnyAsync(u => u.Email == request.Email))
+            var email = NormalizeEmail(request.Email);
+            var existingUser = await _context.Users.SingleOrDefaultAsync(u => u.Email == email);
+            if (existingUser != null)
             {
-                throw new BadRequestException("Email already exists");
+                if (!existingUser.IsEmailVerified)
+                {
+                    await IssueVerificationCodeAsync(existingUser);
+                    return Ok(new ApiResponse<object>(new { requiresEmailVerification = true }, "Email is already registered but not verified. A new verification email has been sent."));
+                }
+
+                throw new BadRequestException("Email is already registered. Please login or use forgot password.");
             }
+
             var user = new User
             {
                 Id = Guid.NewGuid(),
-                Email = request.Email,
+                Email = email,
                 FullName = request.FullName,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
                 Role = "Student",
-                IsActive = true
+                IsActive = true,
+                IsEmailVerified = false
             };
 
             _context.Users.Add(user);
+            await IssueVerificationCodeAsync(user, saveChanges: false);
             await _context.SaveChangesAsync();
 
             var responseData = new UserResponse
@@ -54,16 +65,18 @@ namespace Auth.API.Controllers
                 Email = user.Email,
                 FullName = user.FullName,
                 Role = user.Role,
-                IsActive = user.IsActive
+                IsActive = user.IsActive,
+                IsEmailVerified = user.IsEmailVerified
             };
 
-            return StatusCode(201, new ApiResponse<UserResponse>(responseData, "Account registered successfully", 201));
+            return StatusCode(201, new ApiResponse<UserResponse>(responseData, "Account registered successfully. Please verify your email.", 201));
         }
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginRequest request)
         {
-            var user = await _context.Users.SingleOrDefaultAsync(u => u.Email == request.Email);
+            var email = NormalizeEmail(request.Email);
+            var user = await _context.Users.SingleOrDefaultAsync(u => u.Email == email);
             if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             {
                 throw new UnauthorizedException("Invalid credentials");
@@ -72,6 +85,12 @@ namespace Auth.API.Controllers
             if (!user.IsActive)
             {
                 throw new BadRequestException("Account is deactivated");
+            }
+
+            if (!user.IsEmailVerified)
+            {
+                await IssueVerificationCodeAsync(user);
+                throw new BadRequestException("Email is not verified. A new verification email has been sent.");
             }
 
             var accessToken = _jwtService.GenerateAccessToken(user);
@@ -147,6 +166,22 @@ namespace Auth.API.Controllers
         }
 
         [Authorize]
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout([FromBody] LogoutRequest request)
+        {
+            var storedToken = await _context.RefreshTokens
+                .SingleOrDefaultAsync(t => t.Token == request.RefreshToken);
+
+            if (storedToken != null)
+            {
+                _context.RefreshTokens.Remove(storedToken);
+                await _context.SaveChangesAsync();
+            }
+
+            return Ok(new ApiResponse<object>(null, "Logged out successfully"));
+        }
+
+        [Authorize]
         [HttpGet("me")]
         public async Task<IActionResult> Me()
         {
@@ -168,7 +203,8 @@ namespace Auth.API.Controllers
                 Email = user.Email,
                 FullName = user.FullName,
                 Role = user.Role,
-                IsActive = user.IsActive
+                IsActive = user.IsActive,
+                IsEmailVerified = user.IsEmailVerified
             };
 
             return Ok(new ApiResponse<UserResponse>(responseData, "Get profile details successfully"));
@@ -206,43 +242,119 @@ namespace Auth.API.Controllers
         [HttpPost("forgot-password")]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequest request)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+            var email = NormalizeEmail(request.Email);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
             if (user == null)
             {
                 throw new NotFoundException("User with this email not found");
             }
 
-            var random = new Random();
-            var code = random.Next(100000, 999999).ToString();
-            
-            _resetCodes[request.Email] = code;
+            var code = GenerateSixDigitCode();
+            user.ResetPasswordCode = code;
+            user.ResetPasswordCodeExpiresAt = DateTime.UtcNow.AddMinutes(15);
+            await _emailSender.SendPasswordResetCodeAsync(user.Email, user.FullName, code);
+            await _context.SaveChangesAsync();
 
-            var responseMessage = $"Reset code generated successfully. For testing purposes, your code is: {code}";
-            return Ok(new ApiResponse<string>(code, responseMessage));
+            return Ok(new ApiResponse<object>(new { email = user.Email }, "Password reset code has been sent to your email."));
         }
 
         [HttpPost("reset-password")]
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordRequest request)
         {
-            if (!_resetCodes.TryGetValue(request.Email, out var storedCode) || storedCode != request.ResetCode)
-            {
-                throw new BadRequestException("Invalid or expired reset code");
-            }
-
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+            var email = NormalizeEmail(request.Email);
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
             if (user == null)
             {
                 throw new NotFoundException("User not found");
             }
 
+            if (user.ResetPasswordCode != request.ResetCode ||
+                user.ResetPasswordCodeExpiresAt == null ||
+                user.ResetPasswordCodeExpiresAt < DateTime.UtcNow)
+            {
+                throw new BadRequestException("Invalid or expired reset code");
+            }
+
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+            user.ResetPasswordCode = null;
+            user.ResetPasswordCodeExpiresAt = null;
             _context.Users.Update(user);
-            
-            _resetCodes.TryRemove(request.Email, out _);
 
             await _context.SaveChangesAsync();
 
             return Ok(new ApiResponse<object>(null, "Password reset successfully"));
+        }
+
+        [HttpPost("verify-email")]
+        public async Task<IActionResult> VerifyEmail([FromBody] VerifyEmailRequest request)
+        {
+            var email = NormalizeEmail(request.Email);
+            var user = await _context.Users.SingleOrDefaultAsync(u => u.Email == email);
+            if (user == null)
+            {
+                throw new NotFoundException("User not found");
+            }
+
+            if (user.IsEmailVerified)
+            {
+                return Ok(new ApiResponse<object>(new { isEmailVerified = true }, "Email is already verified."));
+            }
+
+            if (user.EmailVerificationCode != request.Code ||
+                user.EmailVerificationCodeExpiresAt == null ||
+                user.EmailVerificationCodeExpiresAt < DateTime.UtcNow)
+            {
+                throw new BadRequestException("Invalid or expired verification code");
+            }
+
+            user.IsEmailVerified = true;
+            user.EmailVerificationCode = null;
+            user.EmailVerificationCodeExpiresAt = null;
+            await _context.SaveChangesAsync();
+
+            return Ok(new ApiResponse<object>(new { isEmailVerified = true }, "Email verified successfully."));
+        }
+
+        [HttpPost("resend-verification")]
+        [HttpPost("resend-verification-email")]
+        public async Task<IActionResult> ResendVerification([FromBody] ResendVerificationEmailRequest request)
+        {
+            var email = NormalizeEmail(request.Email);
+            var user = await _context.Users.SingleOrDefaultAsync(u => u.Email == email);
+            if (user == null)
+            {
+                throw new NotFoundException("User not found");
+            }
+
+            if (user.IsEmailVerified)
+            {
+                throw new BadRequestException("Email is already verified. Please login or use forgot password.");
+            }
+
+            await IssueVerificationCodeAsync(user);
+            return Ok(new ApiResponse<object>(new { requiresEmailVerification = true }, "Verification email has been resent."));
+        }
+
+        private async Task IssueVerificationCodeAsync(User user, bool saveChanges = true)
+        {
+            var code = GenerateSixDigitCode();
+            user.EmailVerificationCode = code;
+            user.EmailVerificationCodeExpiresAt = DateTime.UtcNow.AddMinutes(15);
+            await _emailSender.SendVerificationCodeAsync(user.Email, user.FullName, code);
+            if (saveChanges)
+            {
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        private static string GenerateSixDigitCode()
+        {
+            return Random.Shared.Next(100000, 999999).ToString();
+        }
+
+        private static string NormalizeEmail(string email)
+        {
+            return email.Trim().ToLowerInvariant();
         }
     }
 }
