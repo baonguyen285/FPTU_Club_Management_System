@@ -9,6 +9,7 @@ using Report.Application.Features.Reports.Commands.CreateReport;
 using Report.Infrastructure.Persistence;
 using Report.Infrastructure.GrpcClients;
 using Report.Infrastructure.EventBus;
+using Report.Infrastructure.Messaging;
 using Shared.Kernel.Grpc;
 using Shared.Kernel.Extensions;
 
@@ -58,7 +59,7 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
     ConnectionMultiplexer.Connect(redisConn));
 
 // Configure gRPC Client
-builder.Services.AddGrpcClient<ClubGrpcService.ClubGrpcServiceClient>(options =>
+builder.Services.AddGrpcClient<Shared.Kernel.Grpc.ClubAccess.V1.ClubAccessService.ClubAccessServiceClient>(options =>
     {
         var url = builder.Configuration["GrpcSettings:ClubServiceUrl"] ?? "http://localhost:5002";
         options.Address = new Uri(url);
@@ -68,7 +69,8 @@ builder.Services.AddGrpcClient<ClubGrpcService.ClubGrpcServiceClient>(options =>
 builder.Services.AddScoped<IReportRepository, ReportRepository>();
 builder.Services.AddScoped<IReportUnitOfWork, ReportUnitOfWork>();
 builder.Services.AddScoped<IClubGrpcClient, ClubGrpcClient>();
-builder.Services.AddScoped<IEventPublisher, RedisEventPublisher>();
+builder.Services.AddSingleton<IRedisStreamProducer, RedisStreamProducer>();
+builder.Services.AddHostedService<OutboxDispatcher>();
 
 // Register MediatR
 builder.Services.AddMediatR(cfg => 
@@ -144,6 +146,29 @@ BEGIN
         Weight decimal(5,2) NOT NULL
     );
 END
+
+IF OBJECT_ID('OutboxMessages', 'U') IS NULL
+BEGIN
+    CREATE TABLE OutboxMessages (
+        Id uniqueidentifier NOT NULL PRIMARY KEY,
+        EventType nvarchar(200) NOT NULL,
+        Payload nvarchar(max) NOT NULL,
+        LegacyPayload nvarchar(max) NULL,
+        OccurredAtUtc datetime2 NOT NULL,
+        PublishedAtUtc datetime2 NULL,
+        RetryCount int NOT NULL,
+        NextAttemptAtUtc datetime2 NULL,
+        LastError nvarchar(2000) NULL,
+        LockedUntilUtc datetime2 NULL,
+        RowVersion rowversion NOT NULL,
+        CreatedAt datetime2 NOT NULL,
+        UpdatedAt datetime2 NULL,
+        IsActive bit NOT NULL
+    );
+END
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_OutboxMessages_PublishedAtUtc_NextAttemptAtUtc' AND object_id = OBJECT_ID('OutboxMessages'))
+    EXEC('CREATE INDEX IX_OutboxMessages_PublishedAtUtc_NextAttemptAtUtc ON OutboxMessages(PublishedAtUtc, NextAttemptAtUtc)');
 ");
     }
     catch (Exception ex)

@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+option csharp_namespace = "Shared.Kernel.Grpc.IdentityDirectory.V1";
+
+package identity.directory.v1;
+
+service IdentityDirectoryService {
+  rpc ListActiveUsersBySystemRole (ListActiveUsersBySystemRoleRequest) returns (ListActiveUsersBySystemRoleReply);
+}
+
+message ListActiveUsersBySystemRoleRequest {
+  SystemRole system_role = 1;
+}
+
+message ListActiveUsersBySystemRoleReply {
+  repeated RecipientIdentity recipients = 1;
+}
+
+message RecipientIdentity {
+  string user_id = 1;
+}
+
+enum SystemRole {
+  SYSTEM_ROLE_UNSPECIFIED = 0;
+  SYSTEM_ROLE_STUDENT_AFFAIRS_ADMIN = 1;
+  SYSTEM_ROLE_CLUB_MANAGER = 2;
+  SYSTEM_ROLE_STUDENT = 3;
+}

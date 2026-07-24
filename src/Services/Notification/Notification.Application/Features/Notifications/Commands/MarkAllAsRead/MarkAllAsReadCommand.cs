@@ -22,15 +22,17 @@ namespace Notification.Application.Features.Notifications.Commands.MarkAllAsRead
 
         public async Task<bool> Handle(MarkAllAsReadCommand request, CancellationToken cancellationToken)
         {
-            var notifications = await _unitOfWork.Notifications.GetByUserIdAsync(request.UserId);
+            var notifications = await _unitOfWork.Notifications.GetByUserIdAsync(request.UserId, isRead: false);
 
             bool anyUpdated = false;
+            var now = DateTime.UtcNow;
             foreach (var notification in notifications)
             {
                 if (!notification.IsRead)
                 {
                     notification.IsRead = true;
-                    notification.UpdatedAt = DateTime.UtcNow;
+                    notification.ReadAt = now;
+                    notification.UpdatedAt = now;
                     _unitOfWork.Notifications.Update(notification);
                     anyUpdated = true;
                 }

@@ -31,7 +31,13 @@ namespace Notification.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
                     b.Property<bool>("IsRead")
@@ -41,8 +47,18 @@ namespace Notification.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTime?>("ReadAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<Guid?>("ReferenceId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("SourceEventId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("TargetUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -60,7 +76,55 @@ namespace Notification.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("SourceEventId", "UserId")
+                        .IsUnique()
+                        .HasFilter("[SourceEventId] IS NOT NULL");
+
                     b.ToTable("Notifications", (string)null);
+                });
+
+            modelBuilder.Entity("Notification.Domain.Entities.StreamProcessingFailure", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LastErrorCode")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("LastErrorMessage")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime>("LastFailedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("RetryCount")
+                        .HasColumnType("int");
+
+                    b.Property<string>("StreamEntryId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StreamEntryId")
+                        .IsUnique();
+
+                    b.ToTable("StreamProcessingFailures", (string)null);
                 });
 #pragma warning restore 612, 618
         }

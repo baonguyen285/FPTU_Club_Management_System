@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+option csharp_namespace = "Shared.Kernel.Grpc.ClubAccess.V1";
+
+package club.access.v1;
+
+service ClubAccessService {
+  rpc CheckClubExists (ClubIdRequest) returns (ExistenceReply);
+  rpc GetClubSummary (ClubIdRequest) returns (ClubSummaryReply);
+  rpc GetMembership (GetMembershipRequest) returns (MembershipReply);
+  rpc CheckClubPermission (CheckClubPermissionRequest) returns (PermissionReply);
+}
+
+message ClubIdRequest {
+  string club_id = 1;
+}
+
+message ExistenceReply {
+  bool exists = 1;
+}
+
+message ClubSummaryReply {
+  string club_id = 1;
+  string name = 2;
+  bool is_active = 3;
+}
+
+message GetMembershipRequest {
+  string club_id = 1;
+  string user_id = 2;
+}
+
+message MembershipReply {
+  bool exists = 1;
+  MembershipStatus status = 2;
+  ClubRole role = 3;
+}
+
+message CheckClubPermissionRequest {
+  string club_id = 1;
+  string user_id = 2;
+  ClubPermission permission = 3;
+}
+
+message PermissionReply {
+  bool is_allowed = 1;
+}
+
+enum ClubPermission {
+  CLUB_PERMISSION_UNSPECIFIED = 0;
+  CLUB_PERMISSION_MANAGE_MEMBERS = 1;
+  CLUB_PERMISSION_MANAGE_ACTIVITIES = 2;
+  CLUB_PERMISSION_SUBMIT_REPORTS = 3;
+  CLUB_PERMISSION_MANAGE_FINANCE = 4;
+}
+
+enum MembershipStatus {
+  MEMBERSHIP_STATUS_UNSPECIFIED = 0;
+  MEMBERSHIP_STATUS_PENDING = 1;
+  MEMBERSHIP_STATUS_APPROVED = 2;
+  MEMBERSHIP_STATUS_REJECTED = 3;
+}
+
+enum ClubRole {
+  CLUB_ROLE_UNSPECIFIED = 0;
+  CLUB_ROLE_MEMBER = 1;
+  CLUB_ROLE_CLUB_LEADER = 2;
+  CLUB_ROLE_TREASURER = 3;
+}

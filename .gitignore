@@ -34,8 +34,8 @@ publish/
 *.ndf
 
 ## Docker
-.dockerignore
-# Do not ignore dockerignore itself, but ignore dev-env artifacts
+# Keep .dockerignore versioned; ignore only local Compose overrides.
+!.dockerignore
 docker-compose.override.yml
 
 ## OS files

@@ -15,14 +15,15 @@ namespace Shared.Kernel.Extensions
                 {
                     var errors = context.ModelState
                         .Where(entry => entry.Value?.Errors.Count > 0)
-                        .SelectMany(entry => entry.Value!.Errors.Select(error =>
-                            string.IsNullOrWhiteSpace(error.ErrorMessage)
+                        .SelectMany(entry => entry.Value!.Errors.Select(error => new ApiError(
+                            code: "VALIDATION_ERROR",
+                            field: entry.Key,
+                            message: string.IsNullOrWhiteSpace(error.ErrorMessage)
                                 ? "Invalid request value."
-                                : error.ErrorMessage))
+                                : error.ErrorMessage)))
                         .ToList();
 
                     var response = new ApiResponse<object>(
-                        statusCode: 400,
                         message: "Validation failed",
                         errors: errors,
                         traceId: context.HttpContext.TraceIdentifier);

@@ -69,7 +69,7 @@ namespace Auth.API.Controllers
                 IsEmailVerified = user.IsEmailVerified
             };
 
-            return StatusCode(201, new ApiResponse<UserResponse>(responseData, "Account registered successfully. Please verify your email.", 201));
+            return StatusCode(201, new ApiResponse<UserResponse>(responseData, "Account registered successfully. Please verify your email."));
         }
 
         [HttpPost("login")]

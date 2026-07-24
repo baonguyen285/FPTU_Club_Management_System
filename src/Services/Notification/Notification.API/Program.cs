@@ -9,6 +9,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using StackExchange.Redis;
 using Notification.Infrastructure.EventBus;
+using Notification.Infrastructure.GrpcClients;
 using Notification.Infrastructure.Hubs;
 using Notification.Infrastructure.Persistence;
 using Notification.Application.Interfaces;
@@ -58,7 +59,12 @@ var redisConn = builder.Configuration.GetConnectionString("Redis") ?? "localhost
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp => 
     ConnectionMultiplexer.Connect(redisConn));
 
-builder.Services.AddHostedService<RedisEventConsumer>();
+builder.Services.AddGrpcClient<Shared.Kernel.Grpc.IdentityDirectory.V1.IdentityDirectoryService.IdentityDirectoryServiceClient>(options =>
+{
+    options.Address = new Uri(builder.Configuration["GrpcSettings:IdentityDirectoryUrl"] ?? "http://localhost:9002");
+});
+builder.Services.AddScoped<IIdentityDirectoryClient, IdentityDirectoryClient>();
+builder.Services.AddHostedService<RedisStreamsConsumer>();
 
 // 4. Configure AutoMapper & MediatR
 builder.Services.AddAutoMapper(typeof(NotificationMappingProfile).Assembly);
@@ -125,6 +131,19 @@ using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<NotificationDbContext>();
     context.Database.EnsureCreated();
+    context.Database.ExecuteSqlRaw(@"
+IF COL_LENGTH('Notifications', 'SourceEventId') IS NULL ALTER TABLE Notifications ADD SourceEventId uniqueidentifier NULL;
+IF COL_LENGTH('Notifications', 'TargetUrl') IS NULL ALTER TABLE Notifications ADD TargetUrl nvarchar(500) NULL;
+IF COL_LENGTH('Notifications', 'ReadAt') IS NULL ALTER TABLE Notifications ADD ReadAt datetime2 NULL;
+IF COL_LENGTH('Notifications', 'IsDeleted') IS NULL ALTER TABLE Notifications ADD IsDeleted bit NOT NULL CONSTRAINT DF_Notifications_IsDeleted DEFAULT(0);
+IF COL_LENGTH('Notifications', 'DeletedAt') IS NULL ALTER TABLE Notifications ADD DeletedAt datetime2 NULL;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_Notifications_SourceEventId_UserId' AND object_id = OBJECT_ID('Notifications'))
+    EXEC('CREATE UNIQUE INDEX IX_Notifications_SourceEventId_UserId ON Notifications(SourceEventId, UserId) WHERE SourceEventId IS NOT NULL');
+IF OBJECT_ID('StreamProcessingFailures', 'U') IS NULL
+    CREATE TABLE StreamProcessingFailures (Id uniqueidentifier NOT NULL PRIMARY KEY, StreamEntryId nvarchar(100) NOT NULL, RetryCount int NOT NULL, LastErrorCode nvarchar(100) NOT NULL, LastErrorMessage nvarchar(2000) NOT NULL, LastFailedAtUtc datetime2 NOT NULL, CreatedAt datetime2 NOT NULL, UpdatedAt datetime2 NULL, IsActive bit NOT NULL);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_StreamProcessingFailures_StreamEntryId' AND object_id = OBJECT_ID('StreamProcessingFailures'))
+    EXEC('CREATE UNIQUE INDEX IX_StreamProcessingFailures_StreamEntryId ON StreamProcessingFailures(StreamEntryId)');
+");
 }
 
 app.UseCors("CorsPolicy");

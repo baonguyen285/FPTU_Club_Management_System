@@ -29,27 +29,25 @@ namespace Report.Application.Features.Reports.Commands.CreateReport
     public class CreateReportCommandHandler : IRequestHandler<CreateReportCommand, ReportDto>
     {
         private readonly IReportUnitOfWork _uow;
-        private readonly IEventPublisher _eventPublisher;
         private readonly IClubGrpcClient _grpcClient;
 
-        public CreateReportCommandHandler(IReportUnitOfWork uow, IEventPublisher eventPublisher, IClubGrpcClient grpcClient)
+        public CreateReportCommandHandler(IReportUnitOfWork uow, IClubGrpcClient grpcClient)
         {
             _uow = uow;
-            _eventPublisher = eventPublisher;
             _grpcClient = grpcClient;
         }
 
         public async Task<ReportDto> Handle(CreateReportCommand request, CancellationToken cancellationToken)
         {
             // Verify if club exists via gRPC
-            var clubExists = await _grpcClient.CheckClubExistsAsync(request.ClubId);
+            var clubExists = await _grpcClient.CheckClubExistsAsync(request.ClubId, cancellationToken);
             if (!clubExists)
             {
                 throw new NotFoundException($"Club with ID {request.ClubId} does not exist.");
             }
 
             // Verify if creator is the manager/president of the club via gRPC
-            bool isManager = await _grpcClient.IsClubManagerAsync(request.ClubId, request.CreatedBy);
+            bool isManager = await _grpcClient.CanSubmitReportsAsync(request.ClubId, request.CreatedBy, cancellationToken);
             if (!isManager)
             {
                 throw new UnauthorizedException("You do not have permission to submit reports for this club.");
@@ -72,10 +70,17 @@ namespace Report.Application.Features.Reports.Commands.CreateReport
             }
 
             await _uow.Reports.AddAsync(report);
+            var submittedAt = report.CreatedAt;
+            var payload = new Shared.Kernel.IntegrationEvents.IntegrationEventEnvelopeV1(
+                Guid.NewGuid(), "ReportSubmittedV1", "v1", submittedAt, "report-service", Guid.NewGuid().ToString("N"),
+                new Shared.Kernel.IntegrationEvents.ReportSubmittedV1(report.Id, report.ClubId, report.CreatedBy, report.Type.ToString(), "Unspecified", submittedAt));
+            var legacy = new Events.ReportSubmittedEvent(report.Id, report.ClubId, report.Title, report.CreatedBy, submittedAt);
+            await _uow.AddOutboxMessageAsync(new OutboxMessage(
+                payload.EventType,
+                System.Text.Json.JsonSerializer.Serialize(payload),
+                System.Text.Json.JsonSerializer.Serialize(legacy),
+                submittedAt), cancellationToken);
             await _uow.SaveChangesAsync();
-
-            var evt = new Events.ReportSubmittedEvent(report.Id, report.ClubId, report.Title, report.CreatedBy, report.CreatedAt);
-            await _eventPublisher.PublishAsync("report-events-channel", evt);
 
             return new ReportDto
             {

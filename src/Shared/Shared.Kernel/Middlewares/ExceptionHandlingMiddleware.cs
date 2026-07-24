@@ -43,26 +43,30 @@ namespace Shared.Kernel.Middlewares
             {
                 UnauthorizedException => StatusCodes.Status401Unauthorized,
                 UnauthorizedAccessException => StatusCodes.Status401Unauthorized,
+                ForbiddenException => StatusCodes.Status403Forbidden,
                 NotFoundException => StatusCodes.Status404NotFound,
                 KeyNotFoundException => StatusCodes.Status404NotFound,
                 ClubNotFoundException => StatusCodes.Status404NotFound,
                 BadRequestException => StatusCodes.Status400BadRequest,
                 ArgumentException => StatusCodes.Status400BadRequest,
                 InvalidDomainException => StatusCodes.Status400BadRequest,
+                ConflictException => StatusCodes.Status409Conflict,
+                ServiceUnavailableException => StatusCodes.Status503ServiceUnavailable,
                 _ => StatusCodes.Status500InternalServerError
             };
 
             context.Response.StatusCode = statusCode;
             logger.LogError(exception, "Unhandled request error. TraceId: {TraceId}", context.TraceIdentifier);
 
-            var errors = new List<string>();
+            var errors = new List<ApiError>();
             if (environment.IsDevelopment())
             {
-                errors.Add(exception.InnerException?.Message ?? exception.Message);
+                errors.Add(new ApiError(
+                    code: "EXCEPTION_DETAIL",
+                    message: exception.InnerException?.Message ?? exception.Message));
             }
 
             var response = new ApiResponse<object>(
-                statusCode: statusCode,
                 message: exception.Message,
                 errors: errors,
                 traceId: context.TraceIdentifier

@@ -12,7 +12,7 @@ services:
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: fptu-sqlserver
     environment:
-      SA_PASSWORD: "YourStrong!Passw0rd"
+      SA_PASSWORD: "${SQLSERVER_SA_PASSWORD:-YourStrong!Passw0rd}"
       ACCEPT_EULA: "Y"
     ports:
       - "1433:1433"
@@ -21,7 +21,7 @@ services:
     networks:
       - fptu-network
     healthcheck:
-      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'YourStrong!Passw0rd' -C -Q 'SELECT 1'"]
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P '${SQLSERVER_SA_PASSWORD:-YourStrong!Passw0rd}' -C -Q 'SELECT 1'"]
       interval: 10s
       retries: 5
       timeout: 5s
@@ -45,15 +45,16 @@ services:
     container_name: fptu-auth
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=auth_db;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True
-      - JwtSettings__SecretKey=your-super-secret-key-min-32-chars!!
-      - JwtSettings__Issuer=fptu-club-system
-      - JwtSettings__Audience=fptu-club-clients
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=auth_db;User Id=sa;Password=${SQLSERVER_SA_PASSWORD:-YourStrong!Passw0rd};TrustServerCertificate=True
+      - JwtSettings__SecretKey=${JWT_SECRET_KEY:-your-super-secret-key-min-32-chars!!}
+      - JwtSettings__Issuer=${JWT_ISSUER:-fptu-club-system}
+      - JwtSettings__Audience=${JWT_AUDIENCE:-fptu-club-clients}
       - Brevo__ApiKey=${BREVO_API_KEY:-}
       - Brevo__SenderEmail=${BREVO_SENDER_EMAIL:-no-reply@fptu-club.local}
       - Brevo__SenderName=${BREVO_SENDER_NAME:-FPTU Club}
     ports:
       - "5001:8080"
+      - "9002:9002"
     depends_on:
       sqlserver:
         condition: service_healthy
@@ -67,7 +68,7 @@ services:
     container_name: fptu-club
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=club_db;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=club_db;User Id=sa;Password=${SQLSERVER_SA_PASSWORD:-YourStrong!Passw0rd};TrustServerCertificate=True
     ports:
       - "5002:8080"
       - "9001:9001"   # Expose gRPC port for internal microservice communication
@@ -84,12 +85,13 @@ services:
     container_name: fptu-report
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=report_db;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=report_db;User Id=sa;Password=${SQLSERVER_SA_PASSWORD:-YourStrong!Passw0rd};TrustServerCertificate=True
       - ConnectionStrings__Redis=redis:6379
       - GrpcSettings__ClubServiceUrl=http://club-service:9001
-      - JwtSettings__SecretKey=your-super-secret-key-min-32-chars!!
-      - JwtSettings__Issuer=fptu-club-system
-      - JwtSettings__Audience=fptu-club-clients
+      - Messaging__LegacyPubSubBridgeEnabled=false
+      - JwtSettings__SecretKey=${JWT_SECRET_KEY:-your-super-secret-key-min-32-chars!!}
+      - JwtSettings__Issuer=${JWT_ISSUER:-fptu-club-system}
+      - JwtSettings__Audience=${JWT_AUDIENCE:-fptu-club-clients}
     ports:
       - "5003:8080"
     depends_on:
@@ -110,7 +112,9 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__Redis=redis:6379
-      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=notification_db;User Id=sa;Password=YourStrong!Passw0rd;TrustServerCertificate=True
+      - GrpcSettings__IdentityDirectoryUrl=http://auth-service:9002
+      - Messaging__LegacyPubSubBridgeEnabled=false
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=notification_db;User Id=sa;Password=${SQLSERVER_SA_PASSWORD:-YourStrong!Passw0rd};TrustServerCertificate=True
     ports:
       - "5004:8080"
     depends_on:
@@ -118,6 +122,31 @@ services:
         condition: service_started
       sqlserver:
         condition: service_healthy
+    networks:
+      - fptu-network
+
+  finance-service:
+    build:
+      context: .
+      dockerfile: src/Services/Finance/Finance.API/Dockerfile
+    container_name: fptu-finance
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=finance_db;User Id=sa;Password=${SQLSERVER_SA_PASSWORD:-YourStrong!Passw0rd};TrustServerCertificate=True
+      - JwtSettings__SecretKey=${JWT_SECRET_KEY:-your-super-secret-key-min-32-chars!!}
+      - JwtSettings__Issuer=${JWT_ISSUER:-fptu-club-system}
+      - JwtSettings__Audience=${JWT_AUDIENCE:-fptu-club-clients}
+      - GrpcSettings__ClubServiceUrl=http://club-service:9001
+      - Messaging__LegacyPubSubBridgeEnabled=false
+    ports:
+      - "5005:8080"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+      club-service:
+        condition: service_started
     networks:
       - fptu-network
 
@@ -129,9 +158,9 @@ services:
     container_name: fptu-gateway
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
-      - JwtSettings__SecretKey=your-super-secret-key-min-32-chars!!
-      - JwtSettings__Issuer=fptu-club-system
-      - JwtSettings__Audience=fptu-club-clients
+      - JwtSettings__SecretKey=${JWT_SECRET_KEY:-your-super-secret-key-min-32-chars!!}
+      - JwtSettings__Issuer=${JWT_ISSUER:-fptu-club-system}
+      - JwtSettings__Audience=${JWT_AUDIENCE:-fptu-club-clients}
     ports:
       - "5000:8080"
     depends_on:
@@ -139,5 +168,6 @@ services:
       - club-service
       - report-service
       - notification-service
+      - finance-service
     networks:
       - fptu-network

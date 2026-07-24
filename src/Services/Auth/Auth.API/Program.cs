@@ -7,8 +7,14 @@ using Auth.Application.Services;
 using Auth.Infrastructure.Services;
 using Shared.Kernel.Extensions;
 using Shared.Kernel.Middlewares;
+using Auth.API.GrpcServices;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.ListenAnyIP(8080);
+    options.ListenAnyIP(9002, listen => listen.Protocols = Microsoft.AspNetCore.Server.Kestrel.Core.HttpProtocols.Http2);
+});
 
 // Add services to the container.
 builder.Services.AddControllers();
@@ -41,6 +47,7 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 });
+builder.Services.AddGrpc();
 
 // Configure DB Context
 var connString = builder.Configuration.GetConnectionString("DefaultConnection") 
@@ -94,6 +101,7 @@ app.UseAuthorization();
 
 app.MapGet("/health", () => Results.Ok(new { status = "OK", service = "auth-service", timestamp = DateTime.UtcNow }));
 app.MapControllers();
+app.MapGrpcService<IdentityDirectoryGrpcServiceImpl>();
 
 // Auto migration
 using (var scope = app.Services.CreateScope())

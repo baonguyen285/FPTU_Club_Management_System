@@ -19,6 +19,8 @@
   </ItemGroup>
   <ItemGroup>
     <Protobuf Include="Grpc\Protos\club.proto" GrpcServices="Both" />
+    <Protobuf Include="Grpc\Protos\club_access_v1.proto" GrpcServices="Both" />
+    <Protobuf Include="Grpc\Protos\identity_directory_v1.proto" GrpcServices="Both" />
   </ItemGroup>
 
 </Project>

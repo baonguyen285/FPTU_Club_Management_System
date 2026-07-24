@@ -80,7 +80,7 @@ namespace Report.API.Controllers
             _context.KpiRules.Add(rule);
             await _context.SaveChangesAsync();
 
-            return StatusCode(201, new ApiResponse<object>(rule, "KPI rule created successfully.", 201));
+            return StatusCode(201, new ApiResponse<object>(rule, "KPI rule created successfully."));
         }
 
         [Authorize(Roles = "Admin,Advisor")]

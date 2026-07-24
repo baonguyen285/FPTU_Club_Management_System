@@ -1,14 +1,32 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace Shared.Kernel.Responses
 {
+    public sealed class ApiError
+    {
+        public string Code { get; set; } = string.Empty;
+        public string? Field { get; set; }
+        public string Message { get; set; } = string.Empty;
+
+        public ApiError()
+        {
+        }
+
+        public ApiError(string code, string message, string? field = null)
+        {
+            Code = code;
+            Field = field;
+            Message = message;
+        }
+    }
+
     public class ApiResponse<T>
     {
         public bool Success { get; set; }
         public string Message { get; set; } = string.Empty;
-        public int StatusCode { get; set; }
         public T? Data { get; set; }
-        public List<string> Errors { get; set; } = new();
+        public IReadOnlyList<ApiError>? Errors { get; set; }
         public object? Meta { get; set; }
         public string? TraceId { get; set; }
 
@@ -16,24 +34,23 @@ namespace Shared.Kernel.Responses
         {
         }
 
-        public ApiResponse(T? data, string? message = null, int statusCode = 200, object? meta = null, string? traceId = null)
+        public ApiResponse(T? data, string? message = null, object? meta = null, string? traceId = null)
         {
             Success = true;
             Message = message ?? "Success";
-            StatusCode = statusCode;
             Data = data;
             Meta = meta;
-            TraceId = traceId;
+            TraceId = traceId ?? Activity.Current?.Id;
         }
 
-        public ApiResponse(int statusCode, string message, List<string>? errors = null, object? meta = null, string? traceId = null)
+        public ApiResponse(string message, IReadOnlyList<ApiError>? errors = null, object? meta = null, string? traceId = null)
         {
             Success = false;
             Message = message;
-            StatusCode = statusCode;
-            Errors = errors ?? new List<string>();
+            Data = default;
+            Errors = errors ?? new List<ApiError>();
             Meta = meta;
-            TraceId = traceId;
+            TraceId = traceId ?? Activity.Current?.Id;
         }
     }
 }

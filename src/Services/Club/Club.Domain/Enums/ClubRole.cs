@@ -6,6 +6,7 @@ namespace Club.Domain.Enums
     {
         Member = 0,
         Manager = 1,
-        President = 2
+        President = 2,
+        Treasurer = 3
     }
 }

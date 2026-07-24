@@ -1,6 +1,34 @@
 {
   "Routes": [
     {
+      "DownstreamPathTemplate": "/health",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "finance-service",
+          "Port": 8080
+        }
+      ],
+      "UpstreamPathTemplate": "/gateway/finance/health",
+      "UpstreamMethods": [ "Get", "Options" ]
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/finance/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "finance-service",
+          "Port": 8080
+        }
+      ],
+      "UpstreamPathTemplate": "/gateway/finance/{everything}",
+      "UpstreamMethods": [ "Get", "Post", "Put", "Patch", "Delete", "Options" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
+    },
+    {
       "DownstreamPathTemplate": "/api/v1/auth/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
@@ -171,6 +199,18 @@
         "AuthenticationProviderKey": "Bearer",
         "AllowedScopes": []
       }
+    },
+    {
+      "DownstreamPathTemplate": "/hubs/notification/negotiate",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "notification-service",
+          "Port": 8080
+        }
+      ],
+      "UpstreamPathTemplate": "/gateway/hubs/notification/negotiate",
+      "UpstreamMethods": [ "Post", "Options" ]
     },
     {
       "DownstreamPathTemplate": "/hubs/notification",

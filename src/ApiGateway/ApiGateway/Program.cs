@@ -71,16 +71,22 @@ app.Use(async (context, next) =>
     }
 
     if (path != null &&
-        (path.StartsWith("/gateway/finance", StringComparison.OrdinalIgnoreCase) ||
-         path.StartsWith("/gateway/dashboard", StringComparison.OrdinalIgnoreCase)))
+        path.StartsWith("/gateway/dashboard", StringComparison.OrdinalIgnoreCase))
     {
         await Results.Json(new
         {
             success = false,
-            message = "Chuc nang chua duoc phat trien.",
-            statusCode = StatusCodes.Status501NotImplemented,
+            message = "This feature has not been implemented yet.",
             data = (object?)null,
-            errors = new[] { "Backend API for this module is not implemented yet." },
+            errors = new[]
+            {
+                new
+                {
+                    code = "FEATURE_NOT_IMPLEMENTED",
+                    field = (string?)null,
+                    message = "Backend API for this module is not implemented yet."
+                }
+            },
             meta = (object?)null,
             traceId = context.TraceIdentifier
         }, statusCode: StatusCodes.Status501NotImplemented).ExecuteAsync(context);

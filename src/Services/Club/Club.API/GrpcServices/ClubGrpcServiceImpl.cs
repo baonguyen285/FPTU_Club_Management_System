@@ -57,7 +57,9 @@ namespace Club.API.GrpcServices
 
             var isManager = await _context.Set<Club.Domain.Entities.ClubMember>()
                 .AnyAsync(m => m.ClubId == clubId && m.UserId == userId 
-                            && (m.Role == Club.Domain.Enums.ClubRole.President || m.Role == Club.Domain.Enums.ClubRole.Manager)
+                            && (m.Role == Club.Domain.Enums.ClubRole.President
+                                || m.Role == Club.Domain.Enums.ClubRole.Manager
+                                || m.Role == Club.Domain.Enums.ClubRole.Treasurer)
                             && m.Status == Club.Domain.Enums.MembershipStatus.Approved);
                             
             return new ClubManagerResponse { IsManager = isManager };

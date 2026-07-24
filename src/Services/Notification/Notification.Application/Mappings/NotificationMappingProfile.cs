@@ -8,7 +8,8 @@ namespace Notification.Application.Mappings
     {
         public NotificationMappingProfile()
         {
-            CreateMap<NotificationEntity, NotificationDto>();
+            CreateMap<NotificationEntity, NotificationDto>()
+                .ForMember(dest => dest.Type, opt => opt.MapFrom(src => src.Type.ToString()));
         }
     }
 }

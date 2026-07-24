@@ -17,7 +17,7 @@ namespace Auth.API.Controllers
     [Authorize(Roles = "Admin")]
     public class UsersController : ControllerBase
     {
-        private static readonly string[] AllowedRoles = { "Admin", "ClubManager", "Student" };
+        private static readonly string[] AllowedRoles = { "Admin", "Advisor", "ClubManager", "Student" };
         private readonly AuthDbContext _context;
 
         public UsersController(AuthDbContext context)

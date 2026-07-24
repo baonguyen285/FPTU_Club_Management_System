@@ -34,6 +34,7 @@ namespace Notification.Application.Features.Notifications.Commands.MarkAsRead
             if (!notification.IsRead)
             {
                 notification.IsRead = true;
+                notification.ReadAt = DateTime.UtcNow;
                 notification.UpdatedAt = DateTime.UtcNow;
                 _unitOfWork.Notifications.Update(notification);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
