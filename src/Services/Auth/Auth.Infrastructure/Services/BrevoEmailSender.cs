@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using Auth.Application.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Shared.Kernel.Exceptions;
 
 namespace Auth.Infrastructure.Services
 {
@@ -59,7 +60,8 @@ namespace Auth.Infrastructure.Services
             {
                 var body = await response.Content.ReadAsStringAsync();
                 _logger.LogError("Brevo email send failed with status {StatusCode}: {Body}", response.StatusCode, body);
-                response.EnsureSuccessStatusCode();
+                throw new ServiceUnavailableException(
+                    "Verification email service is temporarily unavailable. Please try again later.");
             }
         }
     }

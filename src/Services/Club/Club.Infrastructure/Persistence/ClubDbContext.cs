@@ -13,6 +13,7 @@ namespace Club.Infrastructure.Persistence
         public DbSet<Club.Domain.Entities.Club> Clubs { get; set; }
         public DbSet<Club.Domain.Entities.ClubMember> ClubMembers { get; set; }
         public DbSet<Club.Domain.Entities.Event> Events { get; set; }
+        public DbSet<Club.Domain.Entities.ClubApplication> ClubApplications { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -40,6 +41,17 @@ namespace Club.Infrastructure.Persistence
                 entity.HasIndex(e => new { e.ClubId, e.UserId }).IsUnique();
             });
 
+            modelBuilder.Entity<Club.Domain.Entities.ClubApplication>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.ProposedClubName).IsRequired().HasMaxLength(150);
+                entity.Property(e => e.Description).IsRequired().HasMaxLength(4000);
+                entity.Property(e => e.Objectives).IsRequired().HasMaxLength(4000);
+                entity.Property(e => e.ReviewFeedback).HasMaxLength(2000);
+                entity.HasIndex(e => e.Status);
+                entity.HasIndex(e => e.CreatedClubId).IsUnique().HasFilter("[CreatedClubId] IS NOT NULL");
+            });
+
             modelBuilder.Entity<Club.Domain.Entities.Event>(entity =>
             {
                 entity.HasKey(e => e.Id);
@@ -53,6 +65,7 @@ namespace Club.Infrastructure.Persistence
                     Id = Guid.Parse("99999999-9999-9999-9999-999999999999"),
                     Name = "FPTU Software Engineering Club (F-Code)",
                     AdvisorId = Guid.Parse("22222222-2222-2222-2222-222222222222"),
+                    Status = Club.Domain.Enums.ClubStatus.Active,
                     IsActive = true
                 }
             );
@@ -64,7 +77,7 @@ namespace Club.Infrastructure.Persistence
                     Id = Guid.Parse("55555555-5555-5555-5555-555555555555"),
                     ClubId = Guid.Parse("99999999-9999-9999-9999-999999999999"),
                     UserId = Guid.Parse("33333333-3333-3333-3333-333333333333"), // manager1 ID
-                    Role = Club.Domain.Enums.ClubRole.President,
+                    Role = Club.Domain.Enums.ClubRole.ClubLeader,
                     Status = Club.Domain.Enums.MembershipStatus.Approved,
                     JoinedAt = new DateTime(2025, 5, 20, 0, 0, 0, DateTimeKind.Utc),
                     IsActive = true

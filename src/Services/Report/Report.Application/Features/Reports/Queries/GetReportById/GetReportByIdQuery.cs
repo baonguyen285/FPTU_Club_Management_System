@@ -40,9 +40,11 @@ namespace Report.Application.Features.Reports.Queries.GetReportById
                 Type = report.Type.ToString(),
                 Status = report.Status.ToString(),
                 ClubId = report.ClubId,
+                SemesterId = report.SemesterId,
                 CreatedBy = report.CreatedBy,
                 ReviewedBy = report.ReviewedBy,
                 ReviewNote = report.ReviewNote,
+                RevisionNumber = report.RevisionNumber,
                 CreatedAt = report.CreatedAt,
                 UpdatedAt = report.UpdatedAt,
                 Attachments = report.Attachments?.Select(a => new ReportAttachmentDto

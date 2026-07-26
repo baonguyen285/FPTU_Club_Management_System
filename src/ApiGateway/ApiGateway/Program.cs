@@ -20,6 +20,7 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer("Bearer", options =>
 {
+    options.MapInboundClaims = false;
     options.RequireHttpsMetadata = false;
     options.SaveToken = true;
     options.TokenValidationParameters = new TokenValidationParameters
@@ -31,6 +32,8 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidAudience = builder.Configuration["JwtSettings:Audience"] ?? "fptu-club-clients",
         ValidateLifetime = true,
+        NameClaimType = System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Name,
+        RoleClaimType = "role",
         ClockSkew = TimeSpan.Zero
     };
 });

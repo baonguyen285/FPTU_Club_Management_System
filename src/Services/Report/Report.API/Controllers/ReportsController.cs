@@ -16,6 +16,8 @@ using Shared.Kernel.Exceptions;
 using Report.Domain.Enums;
 using Report.Application.DTOs;
 using System.Collections.Generic;
+using Shared.Kernel.Security;
+using Report.Application.Features.Reports.Commands.SubmitReport;
 
 namespace Report.API.Controllers
 {
@@ -24,15 +26,17 @@ namespace Report.API.Controllers
     public class ReportsController : ControllerBase
     {
         private readonly IMediator _mediator;
+        private readonly Report.Application.Interfaces.IClubGrpcClient _club;
 
-        public ReportsController(IMediator mediator)
+        public ReportsController(IMediator mediator, Report.Application.Interfaces.IClubGrpcClient club)
         {
             _mediator = mediator;
+            _club = club;
         }
 
         private Guid GetUserId()
         {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            var userIdClaim = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub);
             if (userIdClaim == null)
             {
                 throw new UnauthorizedException("User is not authenticated.");
@@ -40,13 +44,14 @@ namespace Report.API.Controllers
             return Guid.Parse(userIdClaim.Value);
         }
 
-        [Authorize(Roles = "ClubManager")]
+        [Authorize]
         [HttpPost]
         public async Task<IActionResult> CreateReport([FromBody] CreateReportRequest request)
         {
             var command = new CreateReportCommand
             {
                 ClubId = request.ClubId,
+                SemesterId = request.SemesterId,
                 Title = request.Title,
                 Content = request.Content,
                 Type = request.Type,
@@ -59,7 +64,19 @@ namespace Report.API.Controllers
             return Ok(response);
         }
 
-        [Authorize(Roles = "ClubManager")]
+        [Authorize]
+        [HttpPost("{id:guid}/submit")]
+        public async Task<IActionResult> SubmitReport(Guid id, CancellationToken cancellationToken)
+        {
+            var result = await _mediator.Send(new SubmitReportCommand
+            {
+                ReportId = id,
+                UserId = GetUserId()
+            }, cancellationToken);
+            return Ok(new ApiResponse<ReportDto>(result, "Report submitted successfully."));
+        }
+
+        [Authorize]
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateReport(Guid id, [FromBody] UpdateReportRequest request)
         {
@@ -77,7 +94,7 @@ namespace Report.API.Controllers
             return Ok(response);
         }
 
-        [Authorize(Roles = "Admin,Advisor")]
+        [Authorize(Roles = SystemRoleNames.StudentAffairsAdmin)]
         [HttpPut("{id}/review")]
         public async Task<IActionResult> ReviewReport(Guid id, [FromBody] ReviewReportRequest request)
         {
@@ -85,20 +102,44 @@ namespace Report.API.Controllers
             {
                 ReportId = id,
                 UserId = GetUserId(),
-                IsApproved = request.IsApproved,
+                ActorRole = User.FindFirst("role")?.Value ?? string.Empty,
+                IsApproved = request.IsApproved ?? false,
+                Action = request.Action,
                 ReviewNote = request.ReviewNote
             };
 
             var result = await _mediator.Send(command);
-            var action = request.IsApproved ? "approved" : "rejected";
+            var action = request.Action ?? (request.IsApproved == true ? "approved" : "rejected");
             var response = new ApiResponse<ReportDto>(result, $"Report {action} successfully.");
             return Ok(response);
         }
 
-        [Authorize(Roles = "Admin,Advisor,ClubManager")]
+        [Authorize]
+        [HttpGet("{id:guid}/history")]
+        public async Task<IActionResult> GetHistory(Guid id, CancellationToken cancellationToken)
+        {
+            var report = await _mediator.Send(new GetReportByIdQuery { Id = id }, cancellationToken);
+            if (!User.IsInRole(SystemRoleNames.StudentAffairsAdmin))
+            {
+                var allowed = await _club.CanSubmitReportsAsync(report.ClubId, GetUserId(), cancellationToken);
+                if (!allowed) throw new ForbiddenException("You cannot view another club's report history.");
+            }
+            var history = await HttpContext.RequestServices.GetRequiredService<Report.Application.Interfaces.IReportUnitOfWork>()
+                .GetHistoryAsync(id, cancellationToken);
+            var result = history.Select(x => new ReportRevisionHistoryDto(
+                x.Id, x.ReportId, x.RevisionNumber, x.PreviousStatus.ToString(), x.NewStatus.ToString(),
+                x.Feedback, x.ChangedBy, x.ChangedAt));
+            return Ok(new ApiResponse<object>(result, "Report history fetched successfully."));
+        }
+
+        [Authorize]
         [HttpGet("club/{clubId}")]
         public async Task<IActionResult> GetReportsByClub(Guid clubId, [FromQuery] ReportStatus? status, [FromQuery] ReportType? type)
         {
+            if (!User.IsInRole(SystemRoleNames.StudentAffairsAdmin)
+                && !await _club.CanSubmitReportsAsync(clubId, GetUserId(), HttpContext.RequestAborted))
+                throw new ForbiddenException("You cannot view another club's reports.");
+
             var query = new GetReportsByClubQuery
             {
                 ClubId = clubId,
@@ -111,17 +152,20 @@ namespace Report.API.Controllers
             return Ok(response);
         }
 
-        [Authorize(Roles = "Admin,Advisor,ClubManager")]
+        [Authorize]
         [HttpGet("{id}")]
         public async Task<IActionResult> GetReportById(Guid id)
         {
             var query = new GetReportByIdQuery { Id = id };
             var result = await _mediator.Send(query);
+            if (!User.IsInRole(SystemRoleNames.StudentAffairsAdmin)
+                && !await _club.CanSubmitReportsAsync(result.ClubId, GetUserId(), HttpContext.RequestAborted))
+                throw new ForbiddenException("You cannot view another club's report.");
             var response = new ApiResponse<ReportDto>(result, "Fetched report successfully.");
             return Ok(response);
         }
 
-        [Authorize(Roles = "Admin,Advisor,ClubManager")]
+        [Authorize]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteReport(Guid id)
         {
@@ -140,6 +184,8 @@ namespace Report.API.Controllers
     {
         [Required(ErrorMessage = "Club ID is required")]
         public Guid ClubId { get; set; }
+        [Required]
+        public Guid SemesterId { get; set; }
 
         [Required(ErrorMessage = "Report title is required")]
         [StringLength(200, MinimumLength = 3, ErrorMessage = "Report title must be between 3 and 200 characters")]
@@ -171,8 +217,8 @@ namespace Report.API.Controllers
 
     public class ReviewReportRequest
     {
-        [Required(ErrorMessage = "Review approval status is required")]
-        public bool IsApproved { get; set; }
+        public bool? IsApproved { get; set; }
+        public string? Action { get; set; }
 
         [StringLength(500, ErrorMessage = "Review note cannot exceed 500 characters")]
         public string? ReviewNote { get; set; }

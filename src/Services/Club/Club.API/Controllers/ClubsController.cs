@@ -17,6 +17,7 @@ using Club.Application.Features.Members.Commands.RemoveMember;
 using Club.Application.Features.Members.Queries.GetClubMembers;
 using Club.Application.Features.Members.Queries.GetMyMemberships;
 using Shared.Kernel.Responses;
+using Shared.Kernel.Security;
 using System.Security.Claims;
 using Shared.Kernel.Exceptions;
 
@@ -51,24 +52,27 @@ namespace Club.API.Controllers
             return Ok(new ApiResponse<object>(result, "Retrieved club successfully."));
         }
 
-        [Authorize(Roles = "Admin,Advisor")]
+        [Authorize(Roles = SystemRoleNames.StudentAffairsAdmin)]
         [HttpPost]
         public async Task<IActionResult> CreateClub([FromBody] CreateClubCommand command)
         {
+            command.ActorId = GetActorId();
             var result = await _mediator.Send(command);
             return Ok(new ApiResponse<object>(result, "Club created successfully."));
         }
 
-        [Authorize(Roles = "Admin,ClubManager")]
+        [Authorize]
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateClub(Guid id, [FromBody] UpdateClubCommand command)
         {
             command.Id = id;
+            command.ActorId = GetActorId();
+            command.ActorRole = GetActorRole();
             var result = await _mediator.Send(command);
             return Ok(new ApiResponse<object>(result, "Club updated successfully."));
         }
 
-        [Authorize(Roles = "Admin,Advisor")]
+        [Authorize(Roles = SystemRoleNames.StudentAffairsAdmin)]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteClub(Guid id)
         {
@@ -77,7 +81,7 @@ namespace Club.API.Controllers
             return Ok(new ApiResponse<object>(null, "Club deactivated successfully (soft delete)."));
         }
 
-        [Authorize(Roles = "Admin,Advisor")]
+        [Authorize(Roles = SystemRoleNames.StudentAffairsAdmin)]
         [HttpPut("{id}/review")]
         public async Task<IActionResult> ReviewClub(Guid id, [FromBody] ReviewClubCommand command)
         {
@@ -100,7 +104,7 @@ namespace Club.API.Controllers
         [HttpGet("my-memberships")]
         public async Task<IActionResult> GetMyMemberships()
         {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            var userIdClaim = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub);
             if (userIdClaim == null)
             {
                 throw new UnauthorizedException("User is not authenticated.");
@@ -115,7 +119,7 @@ namespace Club.API.Controllers
         [HttpPost("{id}/members")]
         public async Task<IActionResult> JoinClub(Guid id)
         {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            var userIdClaim = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub);
             if (userIdClaim == null)
             {
                 throw new UnauthorizedException("User is not authenticated.");
@@ -128,41 +132,60 @@ namespace Club.API.Controllers
             return Ok(new ApiResponse<object>(result, "Joined club successfully."));
         }
 
-        [Authorize(Roles = "Admin,ClubManager")]
+        [Authorize]
         [HttpPut("{id}/members/{userId}/approve")]
         public async Task<IActionResult> ApproveMember(Guid id, Guid userId)
         {
-            var command = new ApproveMemberCommand { ClubId = id, UserId = userId };
+            var command = new ApproveMemberCommand
+            {
+                ClubId = id, UserId = userId, ActorId = GetActorId(), ActorRole = GetActorRole()
+            };
             var result = await _mediator.Send(command);
             return Ok(new ApiResponse<object>(result, "Member approved successfully."));
         }
 
-        [Authorize(Roles = "Admin,ClubManager")]
+        [Authorize]
         [HttpPut("{id}/members/{userId}/reject")]
         public async Task<IActionResult> RejectMember(Guid id, Guid userId)
         {
-            var command = new RejectMemberCommand { ClubId = id, UserId = userId };
+            var command = new RejectMemberCommand
+            {
+                ClubId = id, UserId = userId, ActorId = GetActorId(), ActorRole = GetActorRole()
+            };
             await _mediator.Send(command);
             return Ok(new ApiResponse<object>(null, "Member rejected successfully."));
         }
 
-        [Authorize(Roles = "Admin,ClubManager")]
+        [Authorize]
         [HttpPut("{id}/members/{userId}/role")]
         public async Task<IActionResult> UpdateMemberRole(Guid id, Guid userId, [FromBody] UpdateMemberRoleCommand command)
         {
             command.ClubId = id;
             command.UserId = userId;
+            command.ActorId = GetActorId();
+            command.ActorRole = GetActorRole();
             var result = await _mediator.Send(command);
             return Ok(new ApiResponse<object>(result, "Member role updated successfully."));
         }
 
-        [Authorize(Roles = "Admin,ClubManager")]
+        [Authorize]
         [HttpDelete("{id}/members/{userId}")]
         public async Task<IActionResult> RemoveMember(Guid id, Guid userId)
         {
-            var command = new RemoveMemberCommand(id, userId);
+            var command = new RemoveMemberCommand(id, userId, GetActorId(), GetActorRole());
             await _mediator.Send(command);
             return Ok(new ApiResponse<object>(null, "Member removed from club successfully."));
         }
+
+        private Guid GetActorId()
+        {
+            var value = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
+            return Guid.TryParse(value, out var actorId)
+                ? actorId
+                : throw new UnauthorizedException("User is not authenticated.");
+        }
+
+        private string GetActorRole() =>
+            User.FindFirst("role")?.Value ?? throw new UnauthorizedException("Role claim is missing.");
     }
 }

@@ -10,6 +10,8 @@ using Microsoft.OpenApi.Models;
 using Shared.Kernel.Extensions;
 using Shared.Kernel.Middlewares;
 using Shared.Kernel.Grpc;
+using Finance.Infrastructure.Messaging;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -50,6 +52,9 @@ builder.Services.AddDbContext<FinanceDbContext>(options => options.UseSqlServer(
 builder.Services.AddScoped<IBudgetProposalRepository, BudgetProposalRepository>();
 builder.Services.AddScoped<IClubAccessService, ClubAccessService>();
 builder.Services.AddScoped<IBudgetProposalService, BudgetProposalService>();
+builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
+    ConnectionMultiplexer.Connect(builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379"));
+builder.Services.AddScoped<IFinanceEventPublisher, RedisFinanceEventPublisher>();
 builder.Services.AddGrpcClient<Shared.Kernel.Grpc.ClubAccess.V1.ClubAccessService.ClubAccessServiceClient>(options =>
 {
     options.Address = new Uri(builder.Configuration["GrpcSettings:ClubServiceUrl"] ?? "http://localhost:9001");
@@ -61,6 +66,7 @@ builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        options.MapInboundClaims = false;
         options.RequireHttpsMetadata = false;
         options.SaveToken = true;
         options.TokenValidationParameters = new TokenValidationParameters
@@ -72,6 +78,8 @@ builder.Services
             ValidateAudience = true,
             ValidAudience = builder.Configuration["JwtSettings:Audience"] ?? "fptu-club-clients",
             ValidateLifetime = true,
+            NameClaimType = System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Name,
+            RoleClaimType = "role",
             ClockSkew = TimeSpan.Zero
         };
     });

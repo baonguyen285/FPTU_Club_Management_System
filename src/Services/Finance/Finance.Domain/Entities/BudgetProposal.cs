@@ -17,6 +17,11 @@ public class BudgetProposal : BaseEntity
     public BudgetProposalStatus Status { get; private set; } = BudgetProposalStatus.Draft;
     public string? Feedback { get; private set; }
     public string? BudgetDetailsJson { get; private set; }
+    public decimal? ActualAmount { get; private set; }
+    public string? ReceiptUrl { get; private set; }
+    public string? SettlementDescription { get; private set; }
+    public Guid? SettledBy { get; private set; }
+    public DateTime? SettledAt { get; private set; }
 
     private BudgetProposal()
     {
@@ -94,6 +99,26 @@ public class BudgetProposal : BaseEntity
         }
 
         ApplyReview(reviewerId, BudgetProposalStatus.Rejected, null, feedback.Trim());
+    }
+
+    public void Settle(Guid actorId, decimal actualAmount, string receiptUrl, string? description)
+    {
+        if (Status is not BudgetProposalStatus.Approved and not BudgetProposalStatus.PartiallyApproved)
+            throw new Shared.Kernel.Exceptions.ConflictException("Only approved proposals can be settled.");
+        if (actualAmount <= 0)
+            throw new Shared.Kernel.Exceptions.InvalidDomainException("Actual amount must be greater than zero.");
+        if (!ApprovedAmount.HasValue || actualAmount > ApprovedAmount.Value)
+            throw new Shared.Kernel.Exceptions.InvalidDomainException("Actual amount cannot exceed approved amount.");
+        if (string.IsNullOrWhiteSpace(receiptUrl))
+            throw new Shared.Kernel.Exceptions.InvalidDomainException("Receipt URL is required.");
+
+        ActualAmount = actualAmount;
+        ReceiptUrl = receiptUrl.Trim();
+        SettlementDescription = description?.Trim();
+        SettledBy = actorId;
+        SettledAt = DateTime.UtcNow;
+        Status = BudgetProposalStatus.Settled;
+        UpdatedAt = SettledAt;
     }
 
     private static void Validate(Guid clubId, Guid proposerId, string eventName, decimal requestedAmount)

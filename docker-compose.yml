@@ -69,12 +69,18 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=club_db;User Id=sa;Password=${SQLSERVER_SA_PASSWORD:-YourStrong!Passw0rd};TrustServerCertificate=True
+      - ConnectionStrings__Redis=redis:6379
+      - JwtSettings__SecretKey=${JWT_SECRET_KEY:-your-super-secret-key-min-32-chars!!}
+      - JwtSettings__Issuer=${JWT_ISSUER:-fptu-club-system}
+      - JwtSettings__Audience=${JWT_AUDIENCE:-fptu-club-clients}
     ports:
       - "5002:8080"
       - "9001:9001"   # Expose gRPC port for internal microservice communication
     depends_on:
       sqlserver:
         condition: service_healthy
+      redis:
+        condition: service_started
     networks:
       - fptu-network
 
@@ -115,6 +121,9 @@ services:
       - GrpcSettings__IdentityDirectoryUrl=http://auth-service:9002
       - Messaging__LegacyPubSubBridgeEnabled=false
       - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=notification_db;User Id=sa;Password=${SQLSERVER_SA_PASSWORD:-YourStrong!Passw0rd};TrustServerCertificate=True
+      - JwtSettings__SecretKey=${JWT_SECRET_KEY:-your-super-secret-key-min-32-chars!!}
+      - JwtSettings__Issuer=${JWT_ISSUER:-fptu-club-system}
+      - JwtSettings__Audience=${JWT_AUDIENCE:-fptu-club-clients}
     ports:
       - "5004:8080"
     depends_on:
@@ -133,6 +142,7 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=finance_db;User Id=sa;Password=${SQLSERVER_SA_PASSWORD:-YourStrong!Passw0rd};TrustServerCertificate=True
+      - ConnectionStrings__Redis=redis:6379
       - JwtSettings__SecretKey=${JWT_SECRET_KEY:-your-super-secret-key-min-32-chars!!}
       - JwtSettings__Issuer=${JWT_ISSUER:-fptu-club-system}
       - JwtSettings__Audience=${JWT_AUDIENCE:-fptu-club-clients}

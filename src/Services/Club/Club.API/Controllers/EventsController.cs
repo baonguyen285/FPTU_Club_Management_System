@@ -9,7 +9,11 @@ using Club.Application.Features.Events.Commands.SoftDeleteEvent;
 using Club.Application.Features.Events.Commands.HardDeleteEvent;
 using Club.Application.Features.Events.Queries.GetEventsByClub;
 using Club.Application.Features.Events.Queries.GetEventById;
+using Club.Application.Features.Events.Commands.ChangeEventStatus;
+using Club.Domain.Enums;
 using Shared.Kernel.Responses;
+using Shared.Kernel.Security;
+using Shared.Kernel.Exceptions;
 
 namespace Club.API.Controllers
 {
@@ -40,19 +44,23 @@ namespace Club.API.Controllers
             return Ok(new ApiResponse<object>(result, "Retrieved event successfully."));
         }
 
-        [Authorize(Roles = "Admin,ClubManager")]
+        [Authorize]
         [HttpPost]
         public async Task<IActionResult> CreateEvent([FromBody] CreateEventCommand command)
         {
+            command.ActorId = GetActorId();
+            command.ActorRole = GetActorRole();
             var result = await _mediator.Send(command);
             return Ok(new ApiResponse<object>(result, "Event created successfully."));
         }
 
-        [Authorize(Roles = "Admin,ClubManager")]
+        [Authorize]
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateEvent(Guid id, [FromBody] UpdateEventCommand command)
         {
             command.Id = id;
+            command.ActorId = GetActorId();
+            command.ActorRole = GetActorRole();
             var result = await _mediator.Send(command);
             return Ok(new ApiResponse<object>(result, "Event updated successfully."));
         }
@@ -60,11 +68,11 @@ namespace Club.API.Controllers
         /// <summary>
         /// Xóa mềm sự kiện (hủy sự kiện - giữ lại lịch sử)
         /// </summary>
-        [Authorize(Roles = "Admin,ClubManager")]
+        [Authorize]
         [HttpDelete("{id}/cancel")]
         public async Task<IActionResult> SoftDeleteEvent(Guid id)
         {
-            var command = new SoftDeleteEventCommand(id);
+            var command = new SoftDeleteEventCommand(id, GetActorId(), GetActorRole());
             await _mediator.Send(command);
             return Ok(new ApiResponse<object>(null, "Event cancelled successfully (soft delete)."));
         }
@@ -72,7 +80,7 @@ namespace Club.API.Controllers
         /// <summary>
         /// Xóa vĩnh viễn sự kiện khỏi Database
         /// </summary>
-        [Authorize(Roles = "Admin,ClubManager")]
+        [Authorize(Roles = SystemRoleNames.StudentAffairsAdmin)]
         [HttpDelete("{id}/permanent")]
         public async Task<IActionResult> HardDeleteEvent(Guid id)
         {
@@ -80,5 +88,44 @@ namespace Club.API.Controllers
             await _mediator.Send(command);
             return Ok(new ApiResponse<object>(null, "Event permanently deleted."));
         }
+
+        [Authorize]
+        [HttpPut("{id}/submit")]
+        public Task<IActionResult> Submit(Guid id) => ChangeStatus(id, EventStatus.PendingApproval);
+
+        [Authorize(Roles = SystemRoleNames.StudentAffairsAdmin)]
+        [HttpPut("{id}/approve")]
+        public Task<IActionResult> Approve(Guid id) => ChangeStatus(id, EventStatus.Approved);
+
+        [Authorize(Roles = SystemRoleNames.StudentAffairsAdmin)]
+        [HttpPut("{id}/reject")]
+        public Task<IActionResult> Reject(Guid id) => ChangeStatus(id, EventStatus.Rejected);
+
+        [Authorize(Roles = SystemRoleNames.StudentAffairsAdmin)]
+        [HttpPut("{id}/complete")]
+        public Task<IActionResult> Complete(Guid id) => ChangeStatus(id, EventStatus.Completed);
+
+        private async Task<IActionResult> ChangeStatus(Guid id, EventStatus status)
+        {
+            var result = await _mediator.Send(new ChangeEventStatusCommand
+            {
+                Id = id,
+                TargetStatus = status,
+                ActorId = GetActorId(),
+                ActorRole = GetActorRole()
+            });
+            return Ok(new ApiResponse<object>(result, $"Event status changed to {status}."));
+        }
+
+        private Guid GetActorId()
+        {
+            var value = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
+            return Guid.TryParse(value, out var actorId)
+                ? actorId
+                : throw new UnauthorizedException("User is not authenticated.");
+        }
+
+        private string GetActorRole() =>
+            User.FindFirst("role")?.Value ?? throw new UnauthorizedException("Role claim is missing.");
     }
 }

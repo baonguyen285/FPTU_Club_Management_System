@@ -6,6 +6,7 @@ using MediatR;
 using Club.Application.DTOs;
 using Club.Application.Interfaces;
 using Shared.Kernel.Exceptions;
+using Club.Domain.Enums;
 
 namespace Club.Application.Features.Clubs.Commands.ReviewClub
 {
@@ -28,6 +29,11 @@ namespace Club.Application.Features.Clubs.Commands.ReviewClub
                 throw new NotFoundException($"Club with ID '{request.Id}' was not found.");
             }
 
+            if (!IsValidTransition(club.Status, request.Status))
+            {
+                throw new ConflictException($"Club status cannot transition from {club.Status} to {request.Status}.");
+            }
+
             club.Status = request.Status;
             club.UpdatedAt = DateTime.UtcNow;
 
@@ -36,5 +42,13 @@ namespace Club.Application.Features.Clubs.Commands.ReviewClub
 
             return _mapper.Map<ClubDto>(club);
         }
+
+        private static bool IsValidTransition(ClubStatus current, ClubStatus next) => current switch
+        {
+            ClubStatus.PendingApproval => next is ClubStatus.Active or ClubStatus.Inactive,
+            ClubStatus.Active => next is ClubStatus.Suspended or ClubStatus.Inactive,
+            ClubStatus.Suspended => next is ClubStatus.Active or ClubStatus.Inactive,
+            _ => false
+        };
     }
 }

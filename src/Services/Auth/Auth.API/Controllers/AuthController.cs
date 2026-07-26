@@ -10,6 +10,7 @@ using Auth.Application.Services;
 using Auth.Infrastructure.Persistence;
 using Shared.Kernel.Responses;
 using Shared.Kernel.Exceptions;
+using Shared.Kernel.Security;
 
 namespace Auth.API.Controllers
 {
@@ -50,14 +51,13 @@ namespace Auth.API.Controllers
                 Email = email,
                 FullName = request.FullName,
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-                Role = "Student",
+                Role = SystemRoleNames.Student,
                 IsActive = true,
                 IsEmailVerified = false
             };
 
             _context.Users.Add(user);
-            await IssueVerificationCodeAsync(user, saveChanges: false);
-            await _context.SaveChangesAsync();
+            await IssueVerificationCodeAsync(user);
 
             var responseData = new UserResponse
             {
@@ -185,7 +185,7 @@ namespace Auth.API.Controllers
         [HttpGet("me")]
         public async Task<IActionResult> Me()
         {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            var userIdClaim = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub);
             if (userIdClaim == null)
             {
                 throw new UnauthorizedException("Invalid identity token");
@@ -214,7 +214,7 @@ namespace Auth.API.Controllers
         [HttpPost("change-password")]
         public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
         {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            var userIdClaim = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub);
             if (userIdClaim == null)
             {
                 throw new UnauthorizedException("Invalid identity token");
@@ -340,11 +340,11 @@ namespace Auth.API.Controllers
             var code = GenerateSixDigitCode();
             user.EmailVerificationCode = code;
             user.EmailVerificationCodeExpiresAt = DateTime.UtcNow.AddMinutes(15);
-            await _emailSender.SendVerificationCodeAsync(user.Email, user.FullName, code);
             if (saveChanges)
             {
                 await _context.SaveChangesAsync();
             }
+            await _emailSender.SendVerificationCodeAsync(user.Email, user.FullName, code);
         }
 
         private static string GenerateSixDigitCode()

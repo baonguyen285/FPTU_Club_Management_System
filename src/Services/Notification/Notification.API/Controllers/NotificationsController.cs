@@ -18,6 +18,7 @@ using Notification.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
 using Shared.Kernel.Exceptions;
 using Shared.Kernel.Responses;
+using Shared.Kernel.Security;
 using System.Linq;
 
 namespace Notification.API.Controllers
@@ -42,7 +43,7 @@ namespace Notification.API.Controllers
 
         private Guid GetCurrentUserId()
         {
-            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            var userIdStr = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value
                 ?? User.FindFirst("sub")?.Value;
 
             if (!Guid.TryParse(userIdStr, out var userId))
@@ -114,7 +115,7 @@ namespace Notification.API.Controllers
             return Ok(new ApiResponse<object>(null, "Notification soft-deleted successfully."));
         }
 
-        [Authorize(Roles = "StudentAffairsAdmin,Admin,Advisor")]
+        [Authorize(Roles = SystemRoleNames.StudentAffairsAdmin)]
         [HttpPost("broadcast")]
         public async Task<IActionResult> Broadcast([FromBody] BroadcastNotificationRequest request)
         {

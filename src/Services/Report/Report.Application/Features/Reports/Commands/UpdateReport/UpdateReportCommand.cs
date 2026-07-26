@@ -21,10 +21,12 @@ namespace Report.Application.Features.Reports.Commands.UpdateReport
     public class UpdateReportCommandHandler : IRequestHandler<UpdateReportCommand, ReportDto>
     {
         private readonly IReportUnitOfWork _uow;
+        private readonly IClubGrpcClient _club;
 
-        public UpdateReportCommandHandler(IReportUnitOfWork uow)
+        public UpdateReportCommandHandler(IReportUnitOfWork uow, IClubGrpcClient club)
         {
             _uow = uow;
+            _club = club;
         }
 
         public async Task<ReportDto> Handle(UpdateReportCommand request, CancellationToken cancellationToken)
@@ -36,9 +38,9 @@ namespace Report.Application.Features.Reports.Commands.UpdateReport
                 throw new NotFoundException($"Report with ID {request.Id} not found.");
             }
 
-            if (report.CreatedBy != request.UserId)
+            if (!await _club.CanSubmitReportsAsync(report.ClubId, request.UserId, cancellationToken))
             {
-                throw new UnauthorizedException("You are not allowed to update this report.");
+                throw new ForbiddenException("You are not allowed to update reports for this club.");
             }
 
             report.Update(request.Title, request.Content, request.Type);
@@ -54,8 +56,11 @@ namespace Report.Application.Features.Reports.Commands.UpdateReport
                 Type = report.Type.ToString(),
                 Status = report.Status.ToString(),
                 ClubId = report.ClubId,
+                SemesterId = report.SemesterId,
                 CreatedBy = report.CreatedBy,
                 CreatedAt = report.CreatedAt,
+                ReviewNote = report.ReviewNote,
+                RevisionNumber = report.RevisionNumber,
                 UpdatedAt = report.UpdatedAt
             };
         }

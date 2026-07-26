@@ -6,6 +6,8 @@ using MediatR;
 using Club.Application.DTOs;
 using Club.Application.Interfaces;
 using Shared.Kernel.Exceptions;
+using Club.Application.Security;
+using Club.Domain.Enums;
 
 namespace Club.Application.Features.Events.Commands.UpdateEvent
 {
@@ -25,6 +27,12 @@ namespace Club.Application.Features.Events.Commands.UpdateEvent
             var ev = await _unitOfWork.Clubs.GetEventByIdAsync(request.Id);
             if (ev == null)
                 throw new NotFoundException($"Event with ID '{request.Id}' was not found.");
+            await ClubAuthorization.EnsureClubLeaderOrAdminAsync(
+                _unitOfWork.Clubs, ev.ClubId, request.ActorId, request.ActorRole);
+            if (ev.Status is not (EventStatus.Draft or EventStatus.Rejected))
+                throw new ConflictException($"Event in {ev.Status} status is not editable.");
+            if (request.ExpectedDate <= DateTime.UtcNow)
+                throw new BadRequestException("Expected date must be in the future.");
 
             ev.Title = request.Title;
             ev.Description = request.Description;

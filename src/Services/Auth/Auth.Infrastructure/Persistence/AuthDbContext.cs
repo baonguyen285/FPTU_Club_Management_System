@@ -49,7 +49,7 @@ namespace Auth.Infrastructure.Persistence
                     Email = "admin@fpt.edu.vn",
                     PasswordHash = passHash,
                     FullName = "BQL CLB FPTU (Admin)",
-                    Role = "Admin",
+                    Role = "StudentAffairsAdmin",
                     IsActive = true,
                     IsEmailVerified = true,
                     CreatedAt = new DateTime(2025, 5, 20, 0, 0, 0, DateTimeKind.Utc)
@@ -60,7 +60,7 @@ namespace Auth.Infrastructure.Persistence
                     Email = "advisor1@fpt.edu.vn",
                     PasswordHash = passHash,
                     FullName = "Nguyen Van A (Cố vấn)",
-                    Role = "Advisor",
+                    Role = "StudentAffairsAdmin",
                     IsActive = true,
                     IsEmailVerified = true,
                     CreatedAt = new DateTime(2025, 5, 20, 0, 0, 0, DateTimeKind.Utc)

@@ -26,6 +26,9 @@ public class FinanceDbContext : DbContext
             entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(32);
             entity.Property(x => x.Feedback).HasMaxLength(1000);
             entity.Property(x => x.BudgetDetailsJson).HasColumnType("nvarchar(max)");
+            entity.Property(x => x.ActualAmount).HasColumnType("decimal(18,2)");
+            entity.Property(x => x.ReceiptUrl).HasMaxLength(1000);
+            entity.Property(x => x.SettlementDescription).HasMaxLength(500);
             entity.HasIndex(x => new { x.ClubId, x.Status });
         });
 
@@ -37,6 +40,8 @@ public class FinanceDbContext : DbContext
             entity.Property(x => x.Description).IsRequired().HasMaxLength(500);
             entity.Property(x => x.ReceiptUrl).HasMaxLength(1000);
             entity.HasIndex(x => new { x.ClubId, x.TransactionDate });
+            entity.HasIndex(x => new { x.ReferenceId, x.Type })
+                .IsUnique().HasFilter("[ReferenceId] IS NOT NULL AND [Type] IN ('Disbursement','Expense')");
         });
 
         modelBuilder.Entity<ClubFinanceBalance>(entity =>

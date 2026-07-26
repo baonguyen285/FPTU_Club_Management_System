@@ -22,5 +22,17 @@
     <ProjectReference Include="..\..\src\Services\Notification\Notification.Infrastructure\Notification.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Services\Notification\Notification.API\Notification.API.csproj" />
     <ProjectReference Include="..\..\src\Services\Report\Report.Infrastructure\Report.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Services\Report\Report.Application\Report.Application.csproj" />
+    <ProjectReference Include="..\..\src\Services\Report\Report.API\Report.API.csproj" />
+    <ProjectReference Include="..\..\src\Services\Finance\Finance.Domain\Finance.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Services\Finance\Finance.Application\Finance.Application.csproj" />
+    <ProjectReference Include="..\..\src\Services\Finance\Finance.Infrastructure\Finance.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Services\Finance\Finance.API\Finance.API.csproj" />
+    <ProjectReference Include="..\..\src\Services\Auth\Auth.Domain\Auth.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Services\Auth\Auth.Infrastructure\Auth.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Services\Auth\Auth.API\Auth.API.csproj" />
+    <ProjectReference Include="..\..\src\Services\Club\Club.Application\Club.Application.csproj" />
+    <ProjectReference Include="..\..\src\Services\Club\Club.Infrastructure\Club.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Services\Club\Club.API\Club.API.csproj" />
   </ItemGroup>
 </Project>

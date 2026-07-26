@@ -6,6 +6,7 @@ using MediatR;
 using Club.Application.DTOs;
 using Club.Application.Interfaces;
 using Shared.Kernel.Exceptions;
+using Club.Application.Security;
 
 namespace Club.Application.Features.Clubs.Commands.UpdateClub
 {
@@ -25,6 +26,9 @@ namespace Club.Application.Features.Clubs.Commands.UpdateClub
             var club = await _unitOfWork.Clubs.GetByIdAsync(request.Id);
             if (club == null)
                 throw new NotFoundException($"Club with ID '{request.Id}' was not found.");
+
+            await ClubAuthorization.EnsureClubLeaderOrAdminAsync(
+                _unitOfWork.Clubs, request.Id, request.ActorId, request.ActorRole);
 
             club.Name = request.Name;
             club.Description = request.Description;

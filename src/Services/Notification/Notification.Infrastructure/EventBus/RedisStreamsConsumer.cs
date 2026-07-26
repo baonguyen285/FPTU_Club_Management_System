@@ -117,16 +117,43 @@ public sealed class RedisStreamsConsumer : BackgroundService
             var value = entry.Values.FirstOrDefault(x => x.Name == "envelope").Value;
             var envelope = JsonSerializer.Deserialize<IntegrationEventEnvelopeV1>(value!)
                 ?? throw new InvalidDataException("Missing event envelope.");
-            if (envelope.EventType != "ReportSubmittedV1" || envelope.SchemaVersion != "v1")
+            if (envelope.SchemaVersion != "v1")
                 throw new InvalidDataException("Unsupported event contract.");
-            var data = JsonSerializer.Deserialize<ReportSubmittedV1>(JsonSerializer.Serialize(envelope.Data))
-                ?? throw new InvalidDataException("Invalid ReportSubmittedV1 data.");
 
             using var scope = _scopes.CreateScope();
-            var recipients = await scope.ServiceProvider.GetRequiredService<IIdentityDirectoryClient>()
-                .ListActiveUsersBySystemRoleAsync("StudentAffairsAdmin", token);
-            if (recipients.Count == 0)
-                _logger.LogWarning("No recipients resolved for report submitted event. EventId={EventId}; Role={Role}", envelope.EventId, "StudentAffairsAdmin");
+            IReadOnlyCollection<Guid> recipients;
+            Guid reportId;
+            string title;
+            string message;
+            NotificationType notificationType;
+
+            if (envelope.EventType == "ReportSubmittedV1")
+            {
+                var data = JsonSerializer.Deserialize<ReportSubmittedV1>(JsonSerializer.Serialize(envelope.Data))
+                    ?? throw new InvalidDataException("Invalid ReportSubmittedV1 data.");
+                reportId = data.ReportId;
+                title = "New report submitted";
+                message = "A club report is waiting for review.";
+                notificationType = NotificationType.ReportSubmitted;
+                recipients = await scope.ServiceProvider.GetRequiredService<IIdentityDirectoryClient>()
+                    .ListActiveUsersBySystemRoleAsync("StudentAffairsAdmin", token);
+                if (recipients.Count == 0)
+                    _logger.LogWarning("No recipients resolved for report submitted event. EventId={EventId}; Role={Role}", envelope.EventId, "StudentAffairsAdmin");
+            }
+            else if (envelope.EventType == "ReportReminderDueV1")
+            {
+                var data = JsonSerializer.Deserialize<ReportReminderDueV1>(JsonSerializer.Serialize(envelope.Data))
+                    ?? throw new InvalidDataException("Invalid ReportReminderDueV1 data.");
+                reportId = data.ReportId;
+                title = "Pending report reminder";
+                message = "Your club report is still pending review.";
+                notificationType = NotificationType.ReportReminderDue;
+                recipients = new[] { data.ReporterId };
+            }
+            else
+            {
+                throw new InvalidDataException($"Unsupported event type '{envelope.EventType}'.");
+            }
 
             var context = scope.ServiceProvider.GetRequiredService<NotificationDbContext>();
             await using var transaction = await context.Database.BeginTransactionAsync(token);
@@ -136,9 +163,9 @@ public sealed class RedisStreamsConsumer : BackgroundService
                 var notif = new NotificationEntity
                 {
                     Id = Guid.NewGuid(), UserId = recipient, SourceEventId = envelope.EventId,
-                    Title = "New report submitted", Message = "A club report is waiting for review.",
-                    Type = NotificationType.ReportSubmitted, ReferenceId = data.ReportId,
-                    TargetUrl = $"/reports/{data.ReportId}", IsRead = false, CreatedAt = DateTime.UtcNow
+                    Title = title, Message = message,
+                    Type = notificationType, ReferenceId = reportId,
+                    TargetUrl = $"/reports/{reportId}", IsRead = false, CreatedAt = DateTime.UtcNow
                 };
                 createdNotifications.Add(notif);
                 context.Notifications.Add(notif);
@@ -159,7 +186,7 @@ public sealed class RedisStreamsConsumer : BackgroundService
                         id = notif.Id,
                         userId = notif.UserId,
                         sourceEventId = notif.SourceEventId,
-                        reportId = data.ReportId,
+                        reportId,
                         title = notif.Title,
                         message = notif.Message,
                         type = notif.Type.ToString(),

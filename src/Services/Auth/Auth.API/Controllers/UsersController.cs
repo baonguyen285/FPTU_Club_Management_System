@@ -9,15 +9,16 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Shared.Kernel.Exceptions;
 using Shared.Kernel.Responses;
+using Shared.Kernel.Security;
 
 namespace Auth.API.Controllers
 {
     [ApiController]
     [Route("api/v1/[controller]")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = SystemRoleNames.StudentAffairsAdmin)]
     public class UsersController : ControllerBase
     {
-        private static readonly string[] AllowedRoles = { "Admin", "Advisor", "ClubManager", "Student" };
+        private static readonly IReadOnlySet<string> AllowedRoles = SystemRoleNames.Canonical;
         private readonly AuthDbContext _context;
 
         public UsersController(AuthDbContext context)
@@ -128,7 +129,7 @@ namespace Auth.API.Controllers
 
         private bool IsCurrentUser(Guid id)
         {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userIdClaim = User.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
             return Guid.TryParse(userIdClaim, out var currentUserId) && currentUserId == id;
         }
     }

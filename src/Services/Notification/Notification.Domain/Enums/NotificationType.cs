@@ -6,6 +6,7 @@ namespace Notification.Domain.Enums
     {
         ReportSubmitted = 1,
         ReportReviewed = 2,
-        SystemAlert = 3
+        SystemAlert = 3,
+        ReportReminderDue = 4
     }
 }

@@ -38,9 +38,11 @@ namespace Report.Application.Features.Reports.Queries.GetReportsByClub
                 Type = r.Type.ToString(),
                 Status = r.Status.ToString(),
                 ClubId = r.ClubId,
+                SemesterId = r.SemesterId,
                 CreatedBy = r.CreatedBy,
                 ReviewedBy = r.ReviewedBy,
                 ReviewNote = r.ReviewNote,
+                RevisionNumber = r.RevisionNumber,
                 CreatedAt = r.CreatedAt,
                 UpdatedAt = r.UpdatedAt
             });

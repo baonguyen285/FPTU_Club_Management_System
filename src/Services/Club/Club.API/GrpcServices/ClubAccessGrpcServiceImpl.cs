@@ -68,8 +68,8 @@ public sealed class ClubAccessGrpcServiceImpl : ClubAccessService.ClubAccessServ
 
     private static bool IsAllowed(Club.Domain.Enums.ClubRole role, ClubPermission permission) => permission switch
     {
-        ClubPermission.ManageFinance => role is Club.Domain.Enums.ClubRole.President or Club.Domain.Enums.ClubRole.Manager or Club.Domain.Enums.ClubRole.Treasurer,
-        ClubPermission.ManageMembers or ClubPermission.ManageActivities or ClubPermission.SubmitReports => role is Club.Domain.Enums.ClubRole.President or Club.Domain.Enums.ClubRole.Manager,
+        ClubPermission.ManageFinance => role == Club.Domain.Enums.ClubRole.Treasurer,
+        ClubPermission.ManageMembers or ClubPermission.ManageActivities or ClubPermission.SubmitReports => role is Club.Domain.Enums.ClubRole.ClubLeader,
         _ => false
     };
 
@@ -83,7 +83,8 @@ public sealed class ClubAccessGrpcServiceImpl : ClubAccessService.ClubAccessServ
     private static Shared.Kernel.Grpc.ClubAccess.V1.ClubRole MapRole(Club.Domain.Enums.ClubRole role) => role switch
     {
         Club.Domain.Enums.ClubRole.Treasurer => Shared.Kernel.Grpc.ClubAccess.V1.ClubRole.Treasurer,
-        Club.Domain.Enums.ClubRole.President or Club.Domain.Enums.ClubRole.Manager => Shared.Kernel.Grpc.ClubAccess.V1.ClubRole.ClubLeader,
+        Club.Domain.Enums.ClubRole.ClubLeader => Shared.Kernel.Grpc.ClubAccess.V1.ClubRole.ClubLeader,
+        Club.Domain.Enums.ClubRole.LegacyManager => Shared.Kernel.Grpc.ClubAccess.V1.ClubRole.Unspecified,
         _ => Shared.Kernel.Grpc.ClubAccess.V1.ClubRole.Member
     };
 

@@ -21,7 +21,7 @@ public sealed class IdentityDirectoryGrpcServiceImpl : IdentityDirectoryService.
             _ => throw new RpcException(new Status(StatusCode.InvalidArgument, "system_role is required."))
         };
 
-        // Legacy Admin/Advisor are intentionally not returned by the canonical v1 role contract.
+        // Legacy Admin/Advisor are migrated at startup and are intentionally excluded here.
         var ids = await _db.Users.AsNoTracking().Where(x => x.IsActive && x.IsEmailVerified && x.Role == role)
             .Select(x => x.Id).ToListAsync(context.CancellationToken);
         var reply = new ListActiveUsersBySystemRoleReply();

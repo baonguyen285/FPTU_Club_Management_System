@@ -8,5 +8,7 @@ namespace Club.Application.Features.Members.Commands.ApproveMember
     {
         public Guid ClubId { get; set; }
         public Guid UserId { get; set; }
+        public Guid ActorId { get; set; }
+        public string ActorRole { get; set; } = string.Empty;
     }
 }

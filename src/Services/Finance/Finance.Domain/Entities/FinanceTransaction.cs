@@ -12,4 +12,5 @@ public class FinanceTransaction : BaseEntity
     public Guid? ReferenceId { get; set; }
     public DateTime TransactionDate { get; set; } = DateTime.UtcNow;
     public string? ReceiptUrl { get; set; }
+    public Guid CreatedBy { get; set; }
 }

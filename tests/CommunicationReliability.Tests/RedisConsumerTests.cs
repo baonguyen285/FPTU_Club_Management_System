@@ -168,6 +168,29 @@ public sealed class RedisConsumerTests
     }
 
     [Fact]
+    public async Task ProcessAsync_ReportReminder_PersistsForReporterAndAcknowledges()
+    {
+        var eventId = Guid.NewGuid();
+        var reportId = Guid.NewGuid();
+        var reporterId = Guid.NewGuid();
+        var envelope = new IntegrationEventEnvelopeV1(
+            eventId, "ReportReminderDueV1", "v1", DateTime.UtcNow,
+            "report-service", "reminder-correlation",
+            new ReportReminderDueV1(reportId, Guid.NewGuid(), reporterId, DateTime.UtcNow.Date));
+        var entry = CreateStreamEntry(
+            eventId, reportId, customPayload: JsonSerializer.Serialize(envelope));
+
+        await InvokeProcessAsync(CreateConsumer(_dbContext), entry, _dbContext);
+
+        var notification = await _dbContext.Notifications.SingleAsync(x => x.SourceEventId == eventId);
+        Assert.Equal(reporterId, notification.UserId);
+        Assert.Equal(Notification.Domain.Enums.NotificationType.ReportReminderDue, notification.Type);
+        _mockDb.Verify(x => x.StreamAcknowledgeAsync(
+            RedisStreamsConsumer.Stream, RedisStreamsConsumer.Group, entry.Id, CommandFlags.None),
+            Times.Once);
+    }
+
+    [Fact]
     public async Task ProcessAsync_IdentityServiceUnavailable_DoesNotAck()
     {
         // Arrange

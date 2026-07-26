@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Shared.Kernel.Exceptions;
 using Shared.Kernel.Responses;
+using Shared.Kernel.Security;
 
 namespace Finance.API.Controllers;
 
@@ -147,7 +148,7 @@ public class FinanceController : ControllerBase
         return Ok(new ApiResponse<BudgetProposalDto>(proposal, "Budget proposal submitted successfully."));
     }
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = SystemRoleNames.StudentAffairsAdmin)]
     [HttpPost("proposals/{id:guid}/approve")]
     public async Task<IActionResult> ApproveProposal(Guid id, CancellationToken cancellationToken)
     {
@@ -159,7 +160,7 @@ public class FinanceController : ControllerBase
         return Ok(new ApiResponse<BudgetProposalDto>(proposal, "Budget proposal approved successfully."));
     }
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = SystemRoleNames.StudentAffairsAdmin)]
     [HttpPost("proposals/{id:guid}/partial-approve")]
     public async Task<IActionResult> PartiallyApproveProposal(
         Guid id,
@@ -176,7 +177,7 @@ public class FinanceController : ControllerBase
         return Ok(new ApiResponse<BudgetProposalDto>(proposal, "Budget proposal partially approved."));
     }
 
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = SystemRoleNames.StudentAffairsAdmin)]
     [HttpPost("proposals/{id:guid}/reject")]
     public async Task<IActionResult> RejectProposal(
         Guid id,
@@ -192,16 +193,58 @@ public class FinanceController : ControllerBase
         return Ok(new ApiResponse<BudgetProposalDto>(proposal, "Budget proposal rejected."));
     }
 
+    [Authorize]
+    [HttpPost("proposals/{id:guid}/settle")]
+    public async Task<IActionResult> SettleProposal(
+        Guid id, [FromBody] SettleBudgetProposalRequest request, CancellationToken cancellationToken)
+    {
+        var proposal = await _proposalService.SettleAsync(
+            id, new SettleBudgetProposalCommand(request.ActualAmount, request.ReceiptUrl, request.Description),
+            GetActorId(), GetActorRole(), cancellationToken);
+        return Ok(new ApiResponse<BudgetProposalDto>(proposal, "Budget proposal settled successfully."));
+    }
+
+    [Authorize]
+    [HttpGet("clubs/{clubId:guid}/balance")]
+    public async Task<IActionResult> GetBalance(Guid clubId, CancellationToken cancellationToken)
+    {
+        var balance = await _proposalService.GetBalanceAsync(
+            clubId, GetActorId(), GetActorRole(), cancellationToken);
+        return Ok(new ApiResponse<ClubFinanceBalanceDto>(balance, "Club balance retrieved successfully."));
+    }
+
+    [Authorize]
+    [HttpGet("transactions")]
+    public async Task<IActionResult> GetTransactions([FromQuery] Guid clubId, CancellationToken cancellationToken)
+    {
+        if (clubId == Guid.Empty) throw new BadRequestException("clubId is required.");
+        var transactions = await _proposalService.GetTransactionsAsync(
+            clubId, GetActorId(), GetActorRole(), cancellationToken);
+        return Ok(new ApiResponse<IReadOnlyList<FinanceTransactionDto>>(transactions, "Finance transactions retrieved successfully."));
+    }
+
+    [Authorize(Roles = SystemRoleNames.StudentAffairsAdmin)]
+    [HttpPost("transactions")]
+    public async Task<IActionResult> CreateTransaction(
+        [FromBody] CreateFinanceTransactionRequest request, CancellationToken cancellationToken)
+    {
+        var transaction = await _proposalService.CreateTransactionAsync(
+            new CreateFinanceTransactionCommand(request.ClubId, request.ReferenceId, request.Amount,
+                request.Type, request.Description, request.ReceiptUrl),
+            GetActorId(), GetActorRole(), cancellationToken);
+        return StatusCode(201, new ApiResponse<FinanceTransactionDto>(transaction, "Finance transaction created."));
+    }
+
     private Guid GetActorId()
     {
-        var value = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var value = User.FindFirstValue(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub);
         return Guid.TryParse(value, out var actorId)
             ? actorId
             : throw new UnauthorizedException("Invalid identity token.");
     }
 
     private string GetActorRole() =>
-        User.FindFirstValue(ClaimTypes.Role)
+        User.FindFirstValue("role")
         ?? throw new UnauthorizedException("Role claim is missing.");
 }
 
@@ -249,4 +292,28 @@ public sealed class RejectBudgetProposalRequest
     [Required]
     [StringLength(1000, MinimumLength = 3)]
     public string Feedback { get; set; } = string.Empty;
+}
+
+public sealed class SettleBudgetProposalRequest
+{
+    [Range(typeof(decimal), "0.01", "9999999999999999")]
+    public decimal ActualAmount { get; set; }
+    [Required, Url, StringLength(1000)]
+    public string ReceiptUrl { get; set; } = string.Empty;
+    [StringLength(500)]
+    public string? Description { get; set; }
+}
+
+public sealed class CreateFinanceTransactionRequest
+{
+    [Required]
+    public Guid ClubId { get; set; }
+    public Guid? ReferenceId { get; set; }
+    [Range(typeof(decimal), "0.01", "9999999999999999")]
+    public decimal Amount { get; set; }
+    public FinanceTransactionType Type { get; set; }
+    [Required, StringLength(500, MinimumLength = 3)]
+    public string Description { get; set; } = string.Empty;
+    [Url, StringLength(1000)]
+    public string? ReceiptUrl { get; set; }
 }

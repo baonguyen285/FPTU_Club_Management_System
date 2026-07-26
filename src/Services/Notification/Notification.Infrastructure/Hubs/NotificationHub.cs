@@ -19,7 +19,7 @@ namespace Notification.Infrastructure.Hubs
 
         public override async Task OnConnectedAsync()
         {
-            var userId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userId = Context.User?.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
             
             if (!string.IsNullOrEmpty(userId))
             {
@@ -33,7 +33,7 @@ namespace Notification.Infrastructure.Hubs
 
         public override async Task OnDisconnectedAsync(Exception exception)
         {
-            var userId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userId = Context.User?.FindFirst(System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Sub)?.Value;
 
             if (!string.IsNullOrEmpty(userId))
             {

@@ -10,10 +10,14 @@ namespace Club.Application.Features.Events.Commands.SoftDeleteEvent
     public class SoftDeleteEventCommand : IRequest<bool>
     {
         public Guid Id { get; set; }
+        public Guid ActorId { get; set; }
+        public string ActorRole { get; set; } = string.Empty;
 
-        public SoftDeleteEventCommand(Guid id)
+        public SoftDeleteEventCommand(Guid id, Guid actorId, string actorRole)
         {
             Id = id;
+            ActorId = actorId;
+            ActorRole = actorRole;
         }
     }
 }

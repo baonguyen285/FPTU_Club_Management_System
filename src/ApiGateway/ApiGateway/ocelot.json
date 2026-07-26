@@ -1,6 +1,38 @@
 {
   "Routes": [
     {
+      "DownstreamPathTemplate": "/api/v1/club-applications/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "club-service",
+          "Port": 8080
+        }
+      ],
+      "UpstreamPathTemplate": "/gateway/club-applications/{everything}",
+      "UpstreamMethods": [ "Get", "Post", "Put", "Delete", "Options" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/club-applications",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "club-service",
+          "Port": 8080
+        }
+      ],
+      "UpstreamPathTemplate": "/gateway/club-applications",
+      "UpstreamMethods": [ "Get", "Post", "Put", "Options" ],
+      "AuthenticationOptions": {
+        "AuthenticationProviderKey": "Bearer",
+        "AllowedScopes": []
+      }
+    },
+    {
       "DownstreamPathTemplate": "/health",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [

@@ -18,7 +18,7 @@ namespace Club.Application.Features.Clubs.Commands.CreateClub
         [Url(ErrorMessage = "Logo URL must be a valid URL")]
         public string? LogoUrl { get; set; }
 
-        [Required(ErrorMessage = "Advisor ID is required")]
-        public Guid AdvisorId { get; set; }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public Guid ActorId { get; set; }
     }
 }

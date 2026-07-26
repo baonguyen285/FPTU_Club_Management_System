@@ -28,10 +28,12 @@ namespace Auth.Infrastructure.Services
 
             var claims = new List<Claim>
             {
-                new(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new(ClaimTypes.Email, user.Email),
-                new(ClaimTypes.Name, user.FullName),
-                new(ClaimTypes.Role, user.Role)
+                new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+                new(JwtRegisteredClaimNames.Email, user.Email),
+                new(JwtRegisteredClaimNames.Name, user.FullName),
+                new("role", user.Role),
+                new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N")),
+                new(JwtRegisteredClaimNames.Iat, EpochTime.GetIntDate(DateTime.UtcNow).ToString(), ClaimValueTypes.Integer64)
             };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));

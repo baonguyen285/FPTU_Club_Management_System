@@ -27,11 +27,15 @@ namespace Club.Application.Features.Members.Commands.JoinClub
             {
                 throw new NotFoundException($"Club with ID {request.ClubId} not found.");
             }
+            if (!club.IsActive || club.Status != ClubStatus.Active)
+            {
+                throw new ConflictException("Join requests are only accepted for active clubs.");
+            }
 
             var existingMember = await _unitOfWork.Clubs.GetMemberAsync(request.ClubId, request.UserId);
             if (existingMember != null)
             {
-                throw new BadRequestException("User has already joined or applied to this club.");
+                throw new ConflictException("User already has a membership or pending request for this club.");
             }
 
             var member = new Domain.Entities.ClubMember

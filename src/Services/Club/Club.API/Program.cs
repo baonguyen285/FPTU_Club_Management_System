@@ -6,6 +6,7 @@ using Club.Infrastructure.Persistence;
 using Club.API.GrpcServices;
 using Shared.Kernel.Extensions;
 using Shared.Kernel.Middlewares;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -63,6 +64,10 @@ builder.Services.AddDbContext<ClubDbContext>(options =>
 // Add Repositories
 builder.Services.AddScoped<Club.Application.Interfaces.IClubRepository, Club.Infrastructure.Repositories.ClubRepository>();
 builder.Services.AddScoped<Club.Application.Interfaces.IUnitOfWork, Club.Infrastructure.Repositories.UnitOfWork>();
+builder.Services.AddScoped<Club.Application.Interfaces.IClubEventPublisher, Club.Infrastructure.Messaging.RedisClubEventPublisher>();
+builder.Services.AddScoped<Club.Application.Interfaces.IClubApplicationService, Club.Infrastructure.Services.ClubApplicationService>();
+builder.Services.AddSingleton<IConnectionMultiplexer>(_ =>
+    ConnectionMultiplexer.Connect(builder.Configuration.GetConnectionString("Redis") ?? "localhost:6379"));
 
 // Add MediatR and AutoMapper
 builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(Club.Application.DTOs.ClubDto).Assembly));
@@ -82,6 +87,7 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
+    options.MapInboundClaims = false;
     options.RequireHttpsMetadata = false;
     options.SaveToken = true;
     options.TokenValidationParameters = new TokenValidationParameters
@@ -93,6 +99,8 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidAudience = builder.Configuration["JwtSettings:Audience"] ?? "fptu-club-clients",
         ValidateLifetime = true,
+        NameClaimType = System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Name,
+        RoleClaimType = "role",
         ClockSkew = TimeSpan.Zero
     };
 });
@@ -126,6 +134,55 @@ using (var scope = app.Services.CreateScope())
     {
         var context = services.GetRequiredService<ClubDbContext>();
         context.Database.EnsureCreated();
+        context.Database.ExecuteSqlRaw("""
+            IF OBJECT_ID(N'[ClubApplications]', N'U') IS NULL
+            BEGIN
+                CREATE TABLE [ClubApplications] (
+                    [Id] uniqueidentifier NOT NULL,
+                    [ApplicantUserId] uniqueidentifier NOT NULL,
+                    [ProposedClubName] nvarchar(150) NOT NULL,
+                    [Description] nvarchar(4000) NOT NULL,
+                    [Objectives] nvarchar(4000) NOT NULL,
+                    [EvidenceUrlsJson] nvarchar(max) NULL,
+                    [Status] int NOT NULL,
+                    [ReviewFeedback] nvarchar(2000) NULL,
+                    [SubmittedAt] datetime2 NOT NULL,
+                    [ReviewedAt] datetime2 NULL,
+                    [ReviewedByUserId] uniqueidentifier NULL,
+                    [CreatedClubId] uniqueidentifier NULL,
+                    [CreatedAt] datetime2 NOT NULL,
+                    [UpdatedAt] datetime2 NULL,
+                    [IsActive] bit NOT NULL,
+                    CONSTRAINT [PK_ClubApplications] PRIMARY KEY ([Id])
+                );
+                CREATE INDEX [IX_ClubApplications_Status] ON [ClubApplications] ([Status]);
+                CREATE UNIQUE INDEX [IX_ClubApplications_CreatedClubId]
+                    ON [ClubApplications] ([CreatedClubId]) WHERE [CreatedClubId] IS NOT NULL;
+            END
+            """);
+        context.Database.ExecuteSqlRaw("""
+            UPDATE Clubs
+            SET Status = 1
+            WHERE Id = '99999999-9999-9999-9999-999999999999' AND Status = 0;
+            """);
+
+        var treasurerUserId = Guid.Parse("77777777-7777-7777-7777-777777777777");
+        var defaultClubId = Guid.Parse("99999999-9999-9999-9999-999999999999");
+        if (!context.ClubMembers.Any(member =>
+            member.ClubId == defaultClubId && member.UserId == treasurerUserId))
+        {
+            context.ClubMembers.Add(new Club.Domain.Entities.ClubMember
+            {
+                Id = Guid.Parse("88888888-8888-8888-8888-888888888888"),
+                ClubId = defaultClubId,
+                UserId = treasurerUserId,
+                Role = Club.Domain.Enums.ClubRole.Treasurer,
+                Status = Club.Domain.Enums.MembershipStatus.Approved,
+                JoinedAt = DateTime.UtcNow,
+                IsActive = true
+            });
+            context.SaveChanges();
+        }
     }
     catch (Exception ex)
     {

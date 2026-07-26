@@ -5,6 +5,7 @@ using MediatR;
 using Club.Application.Interfaces;
 using Club.Domain.Enums;
 using Shared.Kernel.Exceptions;
+using Club.Application.Security;
 
 namespace Club.Application.Features.Events.Commands.SoftDeleteEvent
 {
@@ -22,6 +23,10 @@ namespace Club.Application.Features.Events.Commands.SoftDeleteEvent
             var ev = await _unitOfWork.Clubs.GetEventByIdAsync(request.Id);
             if (ev == null)
                 throw new NotFoundException($"Event with ID '{request.Id}' was not found.");
+            await ClubAuthorization.EnsureClubLeaderOrAdminAsync(
+                _unitOfWork.Clubs, ev.ClubId, request.ActorId, request.ActorRole);
+            if (ev.Status is EventStatus.Completed or EventStatus.Cancelled)
+                throw new ConflictException($"Event in {ev.Status} status cannot be cancelled.");
 
             // Xóa mềm: set IsActive = false và đổi Status sang Cancelled
             ev.IsActive = false;

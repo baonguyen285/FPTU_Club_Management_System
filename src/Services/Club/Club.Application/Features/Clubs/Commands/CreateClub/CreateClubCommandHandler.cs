@@ -26,7 +26,7 @@ namespace Club.Application.Features.Clubs.Commands.CreateClub
                 Name = request.Name,
                 Description = request.Description,
                 LogoUrl = request.LogoUrl,
-                AdvisorId = request.AdvisorId,
+                AdvisorId = request.ActorId,
                 Status = ClubStatus.PendingApproval,
                 IsActive = true
             };

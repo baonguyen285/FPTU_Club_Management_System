@@ -24,6 +24,22 @@ public sealed class OutboxAndContractTests
     }
 
     [Fact]
+    public void ReportReminderDueV1_is_versioned_and_contains_no_sensitive_data()
+    {
+        var data = new ReportReminderDueV1(
+            Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), DateTime.UtcNow.Date);
+        var envelope = new IntegrationEventEnvelopeV1(
+            Guid.NewGuid(), "ReportReminderDueV1", "v1", DateTime.UtcNow,
+            "report-service", "correlation", data);
+        var serialized = System.Text.Json.JsonSerializer.Serialize(envelope);
+
+        Assert.Contains("\"EventType\":\"ReportReminderDueV1\"", serialized);
+        Assert.Contains("\"SchemaVersion\":\"v1\"", serialized);
+        Assert.DoesNotContain("password", serialized, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("token", serialized, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public void Outbox_is_not_ready_while_another_worker_holds_a_lease()
     {
         var item = NewOutbox();

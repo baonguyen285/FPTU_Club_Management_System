@@ -13,6 +13,7 @@ namespace Report.Application.Features.Reports.Commands.CreateReport
     public class CreateReportCommand : IRequest<ReportDto>
     {
         public Guid ClubId { get; set; }
+        public Guid SemesterId { get; set; }
         public string Title { get; set; } = string.Empty;
         public string Content { get; set; } = string.Empty;
         public ReportType Type { get; set; }
@@ -50,11 +51,20 @@ namespace Report.Application.Features.Reports.Commands.CreateReport
             bool isManager = await _grpcClient.CanSubmitReportsAsync(request.ClubId, request.CreatedBy, cancellationToken);
             if (!isManager)
             {
-                throw new UnauthorizedException("You do not have permission to submit reports for this club.");
+                throw new ForbiddenException("You do not have permission to submit reports for this club.");
             }
+
+            if (request.SemesterId == Guid.Empty)
+                throw new BadRequestException("SemesterId is required for new reports.");
+
+            var semester = await _uow.GetSemesterAsync(request.SemesterId, cancellationToken)
+                ?? throw new NotFoundException("Semester not found.");
+            if (semester.Status != SemesterStatus.Active)
+                throw new ConflictException("Only an active semester accepts new reports.");
 
             var report = new Domain.Entities.Report(
                 request.ClubId,
+                request.SemesterId,
                 request.Title,
                 request.Content,
                 request.Type,
@@ -70,16 +80,6 @@ namespace Report.Application.Features.Reports.Commands.CreateReport
             }
 
             await _uow.Reports.AddAsync(report);
-            var submittedAt = report.CreatedAt;
-            var payload = new Shared.Kernel.IntegrationEvents.IntegrationEventEnvelopeV1(
-                Guid.NewGuid(), "ReportSubmittedV1", "v1", submittedAt, "report-service", Guid.NewGuid().ToString("N"),
-                new Shared.Kernel.IntegrationEvents.ReportSubmittedV1(report.Id, report.ClubId, report.CreatedBy, report.Type.ToString(), "Unspecified", submittedAt));
-            var legacy = new Events.ReportSubmittedEvent(report.Id, report.ClubId, report.Title, report.CreatedBy, submittedAt);
-            await _uow.AddOutboxMessageAsync(new OutboxMessage(
-                payload.EventType,
-                System.Text.Json.JsonSerializer.Serialize(payload),
-                System.Text.Json.JsonSerializer.Serialize(legacy),
-                submittedAt), cancellationToken);
             await _uow.SaveChangesAsync();
 
             return new ReportDto
@@ -90,8 +90,10 @@ namespace Report.Application.Features.Reports.Commands.CreateReport
                 Type = report.Type.ToString(),
                 Status = report.Status.ToString(),
                 ClubId = report.ClubId,
+                SemesterId = report.SemesterId,
                 CreatedBy = report.CreatedBy,
                 CreatedAt = report.CreatedAt,
+                RevisionNumber = report.RevisionNumber,
                 Attachments = report.Attachments.Select(a => new ReportAttachmentDto
                 {
                     Id = a.Id,

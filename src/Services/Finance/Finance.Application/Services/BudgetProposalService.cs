@@ -3,6 +3,7 @@ using Finance.Application.Interfaces;
 using Finance.Domain.Entities;
 using Finance.Domain.Enums;
 using Shared.Kernel.Exceptions;
+using Shared.Kernel.Security;
 
 namespace Finance.Application.Services;
 
@@ -10,11 +11,16 @@ public sealed class BudgetProposalService : IBudgetProposalService
 {
     private readonly IBudgetProposalRepository _repository;
     private readonly IClubAccessService _clubAccess;
+    private readonly IFinanceEventPublisher _events;
 
-    public BudgetProposalService(IBudgetProposalRepository repository, IClubAccessService clubAccess)
+    public BudgetProposalService(
+        IBudgetProposalRepository repository,
+        IClubAccessService clubAccess,
+        IFinanceEventPublisher events)
     {
         _repository = repository;
         _clubAccess = clubAccess;
+        _events = events;
     }
 
     public async Task<BudgetProposalDto> CreateAsync(
@@ -127,7 +133,9 @@ public sealed class BudgetProposalService : IBudgetProposalService
         EnsureAdmin(actorRole);
         var proposal = await GetRequiredAsync(id, true, cancellationToken);
         proposal.Approve(actorId);
+        await AddDisbursementAsync(proposal, actorId, cancellationToken);
         await _repository.SaveChangesAsync(cancellationToken);
+        await _events.PublishBudgetAsync("BudgetApprovedV1", proposal, cancellationToken);
         return Map(proposal);
     }
 
@@ -142,8 +150,108 @@ public sealed class BudgetProposalService : IBudgetProposalService
         EnsureAdmin(actorRole);
         var proposal = await GetRequiredAsync(id, true, cancellationToken);
         proposal.PartiallyApprove(actorId, approvedAmount, feedback);
+        await AddDisbursementAsync(proposal, actorId, cancellationToken);
         await _repository.SaveChangesAsync(cancellationToken);
+        await _events.PublishBudgetAsync("BudgetApprovedV1", proposal, cancellationToken);
         return Map(proposal);
+    }
+
+    public async Task<BudgetProposalDto> SettleAsync(
+        Guid id, SettleBudgetProposalCommand command, Guid actorId, string actorRole,
+        CancellationToken cancellationToken = default)
+    {
+        var proposal = await GetRequiredAsync(id, true, cancellationToken);
+        await EnsureClubAccessAsync(proposal.ClubId, actorId, actorRole, cancellationToken);
+        if (await _repository.TransactionExistsAsync(proposal.Id, FinanceTransactionType.Expense, cancellationToken))
+            throw new ConflictException("Proposal has already been settled.");
+
+        proposal.Settle(actorId, command.ActualAmount, command.ReceiptUrl, command.Description);
+        var balance = await GetOrCreateBalanceAsync(proposal.ClubId, cancellationToken);
+        if (balance.AvailableAmount < command.ActualAmount)
+            throw new ConflictException("Club balance is insufficient.");
+        balance.SpentAmount += command.ActualAmount;
+        balance.AvailableAmount = balance.AllocatedAmount - balance.SpentAmount;
+        balance.UpdatedAt = DateTime.UtcNow;
+        await _repository.AddTransactionAsync(new FinanceTransaction
+        {
+            Id = Guid.NewGuid(), ClubId = proposal.ClubId, ReferenceId = proposal.Id,
+            Amount = command.ActualAmount, Type = FinanceTransactionType.Expense,
+            Description = command.Description?.Trim() ?? $"Settlement for {proposal.EventName}",
+            ReceiptUrl = command.ReceiptUrl.Trim(), CreatedBy = actorId
+        }, cancellationToken);
+        await _repository.SaveChangesAsync(cancellationToken);
+        await _events.PublishBudgetAsync("BudgetSettledV1", proposal, cancellationToken);
+        return Map(proposal);
+    }
+
+    public async Task<ClubFinanceBalanceDto> GetBalanceAsync(Guid clubId, Guid actorId, string actorRole, CancellationToken cancellationToken = default)
+    {
+        await EnsureClubExistsAsync(clubId, cancellationToken);
+        await EnsureClubAccessAsync(clubId, actorId, actorRole, cancellationToken);
+        var balance = await _repository.GetBalanceAsync(clubId, false, cancellationToken);
+        return balance == null
+            ? new ClubFinanceBalanceDto(clubId, 0, 0, 0, null)
+            : new ClubFinanceBalanceDto(clubId, balance.AllocatedAmount, balance.SpentAmount, balance.AvailableAmount, balance.UpdatedAt);
+    }
+
+    public async Task<IReadOnlyList<FinanceTransactionDto>> GetTransactionsAsync(Guid clubId, Guid actorId, string actorRole, CancellationToken cancellationToken = default)
+    {
+        await EnsureClubExistsAsync(clubId, cancellationToken);
+        await EnsureClubAccessAsync(clubId, actorId, actorRole, cancellationToken);
+        return (await _repository.GetTransactionsAsync(clubId, cancellationToken)).Select(MapTransaction).ToList();
+    }
+
+    public async Task<FinanceTransactionDto> CreateTransactionAsync(CreateFinanceTransactionCommand command, Guid actorId, string actorRole, CancellationToken cancellationToken = default)
+    {
+        EnsureAdmin(actorRole);
+        await EnsureClubExistsAsync(command.ClubId, cancellationToken);
+        if (command.Amount <= 0) throw new BadRequestException("Amount must be greater than zero.");
+        if (command.ReferenceId.HasValue
+            && await _repository.TransactionExistsAsync(command.ReferenceId.Value, command.Type, cancellationToken))
+            throw new ConflictException("A transaction of this type already exists for the reference.");
+        var transaction = new FinanceTransaction
+        {
+            Id = Guid.NewGuid(), ClubId = command.ClubId, ReferenceId = command.ReferenceId,
+            Amount = command.Amount, Type = command.Type, Description = command.Description.Trim(),
+            ReceiptUrl = command.ReceiptUrl?.Trim(), CreatedBy = actorId
+        };
+        var balance = await GetOrCreateBalanceAsync(command.ClubId, cancellationToken);
+        if (command.Type is FinanceTransactionType.Allocation or FinanceTransactionType.Disbursement)
+            balance.AllocatedAmount += command.Amount;
+        else if (command.Type == FinanceTransactionType.Expense)
+            balance.SpentAmount += command.Amount;
+        balance.AvailableAmount = balance.AllocatedAmount - balance.SpentAmount;
+        if (balance.AvailableAmount < 0) throw new ConflictException("Transaction would make the balance negative.");
+        balance.UpdatedAt = DateTime.UtcNow;
+        await _repository.AddTransactionAsync(transaction, cancellationToken);
+        await _repository.SaveChangesAsync(cancellationToken);
+        return MapTransaction(transaction);
+    }
+
+    private async Task AddDisbursementAsync(BudgetProposal proposal, Guid actorId, CancellationToken cancellationToken)
+    {
+        if (await _repository.TransactionExistsAsync(proposal.Id, FinanceTransactionType.Disbursement, cancellationToken))
+            throw new ConflictException("Proposal disbursement already exists.");
+        var amount = proposal.ApprovedAmount!.Value;
+        var balance = await GetOrCreateBalanceAsync(proposal.ClubId, cancellationToken);
+        balance.AllocatedAmount += amount;
+        balance.AvailableAmount = balance.AllocatedAmount - balance.SpentAmount;
+        balance.UpdatedAt = DateTime.UtcNow;
+        await _repository.AddTransactionAsync(new FinanceTransaction
+        {
+            Id = Guid.NewGuid(), ClubId = proposal.ClubId, ReferenceId = proposal.Id,
+            Amount = amount, Type = FinanceTransactionType.Disbursement,
+            Description = $"Approved budget for {proposal.EventName}", CreatedBy = actorId
+        }, cancellationToken);
+    }
+
+    private async Task<ClubFinanceBalance> GetOrCreateBalanceAsync(Guid clubId, CancellationToken cancellationToken)
+    {
+        var balance = await _repository.GetBalanceAsync(clubId, true, cancellationToken);
+        if (balance != null) return balance;
+        balance = new ClubFinanceBalance { Id = Guid.NewGuid(), ClubId = clubId };
+        await _repository.AddBalanceAsync(balance, cancellationToken);
+        return balance;
     }
 
     public async Task<BudgetProposalDto> RejectAsync(
@@ -231,12 +339,12 @@ public sealed class BudgetProposalService : IBudgetProposalService
     {
         if (!IsAdmin(actorRole))
         {
-            throw new ForbiddenException("Only Admin can review budget proposals.");
+            throw new ForbiddenException("Only StudentAffairsAdmin can review budget proposals.");
         }
     }
 
     private static bool IsAdmin(string actorRole) =>
-        string.Equals(actorRole, "Admin", StringComparison.OrdinalIgnoreCase);
+        string.Equals(actorRole, SystemRoleNames.StudentAffairsAdmin, StringComparison.Ordinal);
 
     private static BudgetProposalDto Map(BudgetProposal proposal) => new(
         proposal.Id,
@@ -252,6 +360,16 @@ public sealed class BudgetProposalService : IBudgetProposalService
         proposal.Status.ToString(),
         proposal.Feedback,
         proposal.BudgetDetailsJson,
+        proposal.ActualAmount,
+        proposal.ReceiptUrl,
+        proposal.SettlementDescription,
+        proposal.SettledBy,
+        proposal.SettledAt,
         proposal.CreatedAt,
         proposal.UpdatedAt);
+
+    private static FinanceTransactionDto MapTransaction(FinanceTransaction transaction) => new(
+        transaction.Id, transaction.ClubId, transaction.ReferenceId, transaction.Amount,
+        transaction.Type.ToString(), transaction.Description, transaction.TransactionDate,
+        transaction.ReceiptUrl, transaction.CreatedBy);
 }

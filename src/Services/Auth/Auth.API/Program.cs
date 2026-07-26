@@ -66,6 +66,7 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
+    options.MapInboundClaims = false;
     options.RequireHttpsMetadata = false;
     options.SaveToken = true;
     options.TokenValidationParameters = new TokenValidationParameters
@@ -77,6 +78,8 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidAudience = builder.Configuration["JwtSettings:Audience"] ?? "fptu-club-clients",
         ValidateLifetime = true,
+        NameClaimType = System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Name,
+        RoleClaimType = "role",
         ClockSkew = TimeSpan.Zero
     };
 });
@@ -126,7 +129,26 @@ IF COL_LENGTH('Users', 'ResetPasswordCode') IS NULL
 
 IF COL_LENGTH('Users', 'ResetPasswordCodeExpiresAt') IS NULL
     ALTER TABLE Users ADD ResetPasswordCodeExpiresAt datetime2 NULL;
+
+-- Idempotent legacy system-role migration. No ClubManager/Student records are changed.
+UPDATE Users SET Role = 'StudentAffairsAdmin' WHERE Role IN ('Admin', 'Advisor');
 ");
+
+        if (!context.Users.Any(user => user.Email == "treasurer1@fpt.edu.vn"))
+        {
+            context.Users.Add(new Auth.Domain.Entities.User
+            {
+                Id = Guid.Parse("77777777-7777-7777-7777-777777777777"),
+                Email = "treasurer1@fpt.edu.vn",
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Fptu@123"),
+                FullName = "Pham Minh D (Thủ quỹ)",
+                Role = "ClubManager",
+                IsActive = true,
+                IsEmailVerified = true,
+                CreatedAt = DateTime.UtcNow
+            });
+            context.SaveChanges();
+        }
     }
     catch (Exception ex)
     {

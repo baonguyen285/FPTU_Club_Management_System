@@ -66,4 +66,25 @@ public sealed class BudgetProposalRepository : IBudgetProposalRepository
 
     public Task SaveChangesAsync(CancellationToken cancellationToken = default) =>
         _context.SaveChangesAsync(cancellationToken);
+
+    public Task AddTransactionAsync(FinanceTransaction transaction, CancellationToken cancellationToken = default) =>
+        _context.FinanceTransactions.AddAsync(transaction, cancellationToken).AsTask();
+
+    public Task<bool> TransactionExistsAsync(Guid referenceId, FinanceTransactionType type, CancellationToken cancellationToken = default) =>
+        _context.FinanceTransactions.AnyAsync(x => x.ReferenceId == referenceId && x.Type == type && x.IsActive, cancellationToken);
+
+    public async Task<IReadOnlyList<FinanceTransaction>> GetTransactionsAsync(Guid clubId, CancellationToken cancellationToken = default) =>
+        await _context.FinanceTransactions.AsNoTracking()
+            .Where(x => x.ClubId == clubId && x.IsActive)
+            .OrderByDescending(x => x.TransactionDate).ThenBy(x => x.Id)
+            .ToListAsync(cancellationToken);
+
+    public Task<ClubFinanceBalance?> GetBalanceAsync(Guid clubId, bool asTracking, CancellationToken cancellationToken = default)
+    {
+        var query = asTracking ? _context.ClubFinanceBalances.AsQueryable() : _context.ClubFinanceBalances.AsNoTracking();
+        return query.SingleOrDefaultAsync(x => x.ClubId == clubId && x.IsActive, cancellationToken);
+    }
+
+    public Task AddBalanceAsync(ClubFinanceBalance balance, CancellationToken cancellationToken = default) =>
+        _context.ClubFinanceBalances.AddAsync(balance, cancellationToken).AsTask();
 }

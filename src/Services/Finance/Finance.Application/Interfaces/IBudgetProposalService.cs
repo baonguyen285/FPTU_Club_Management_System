@@ -52,4 +52,8 @@ public interface IBudgetProposalService
         Guid actorId,
         string actorRole,
         CancellationToken cancellationToken = default);
+    Task<BudgetProposalDto> SettleAsync(Guid id, SettleBudgetProposalCommand command, Guid actorId, string actorRole, CancellationToken cancellationToken = default);
+    Task<ClubFinanceBalanceDto> GetBalanceAsync(Guid clubId, Guid actorId, string actorRole, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<FinanceTransactionDto>> GetTransactionsAsync(Guid clubId, Guid actorId, string actorRole, CancellationToken cancellationToken = default);
+    Task<FinanceTransactionDto> CreateTransactionAsync(CreateFinanceTransactionCommand command, Guid actorId, string actorRole, CancellationToken cancellationToken = default);
 }

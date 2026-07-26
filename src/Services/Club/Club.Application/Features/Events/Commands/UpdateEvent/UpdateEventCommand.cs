@@ -9,6 +9,10 @@ namespace Club.Application.Features.Events.Commands.UpdateEvent
     {
         [System.Text.Json.Serialization.JsonIgnore]
         public Guid Id { get; set; }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public Guid ActorId { get; set; }
+        [System.Text.Json.Serialization.JsonIgnore]
+        public string ActorRole { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Event title is required")]
         [StringLength(200, MinimumLength = 3, ErrorMessage = "Event title must be between 3 and 200 characters")]

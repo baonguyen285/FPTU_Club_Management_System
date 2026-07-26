@@ -65,6 +65,7 @@ builder.Services.AddGrpcClient<Shared.Kernel.Grpc.IdentityDirectory.V1.IdentityD
 });
 builder.Services.AddScoped<IIdentityDirectoryClient, IdentityDirectoryClient>();
 builder.Services.AddHostedService<RedisStreamsConsumer>();
+builder.Services.AddHostedService<ClubWorkflowRedisConsumer>();
 
 // 4. Configure AutoMapper & MediatR
 builder.Services.AddAutoMapper(typeof(NotificationMappingProfile).Assembly);
@@ -95,6 +96,7 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
+    options.MapInboundClaims = false;
     options.RequireHttpsMetadata = false;
     options.SaveToken = true;
     options.TokenValidationParameters = new TokenValidationParameters
@@ -105,7 +107,9 @@ builder.Services.AddAuthentication(options =>
         ValidIssuer = builder.Configuration["JwtSettings:Issuer"] ?? "fptu-club-system",
         ValidateAudience = true,
         ValidAudience = builder.Configuration["JwtSettings:Audience"] ?? "fptu-club-clients",
-        ValidateLifetime = true
+        ValidateLifetime = true,
+        NameClaimType = System.IdentityModel.Tokens.Jwt.JwtRegisteredClaimNames.Name,
+        RoleClaimType = "role"
     };
 
     // Support JWT over WebSocket (SignalR sends token in query string)
