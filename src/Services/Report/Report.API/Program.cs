@@ -14,6 +14,8 @@ using Shared.Kernel.Grpc;
 using Shared.Kernel.Extensions;
 using Hangfire;
 using Report.API.Jobs;
+using Report.Application.Validation;
+using Report.Application.Generation;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -66,12 +68,33 @@ builder.Services.AddGrpcClient<Shared.Kernel.Grpc.ClubAccess.V1.ClubAccessServic
         var url = builder.Configuration["GrpcSettings:ClubServiceUrl"] ?? "http://localhost:5002";
         options.Address = new Uri(url);
     });
+builder.Services.AddGrpcClient<Shared.Kernel.Grpc.SmartReports.V1.ClubReportSnapshotSource.ClubReportSnapshotSourceClient>(options =>
+{
+    options.Address = new Uri(builder.Configuration["GrpcSettings:ClubServiceUrl"] ?? "http://localhost:9001");
+});
+builder.Services.AddGrpcClient<Shared.Kernel.Grpc.SmartReports.V1.FinanceReportSnapshotSource.FinanceReportSnapshotSourceClient>(options =>
+{
+    options.Address = new Uri(builder.Configuration["GrpcSettings:FinanceServiceUrl"] ?? "http://localhost:9003");
+});
 
 // Configure Dependency Injection
 builder.Services.AddScoped<IReportRepository, ReportRepository>();
 builder.Services.AddScoped<IReportUnitOfWork, ReportUnitOfWork>();
 builder.Services.AddScoped<ISemesterService, Report.Infrastructure.Services.SemesterService>();
 builder.Services.AddScoped<IClubGrpcClient, ClubGrpcClient>();
+builder.Services.AddScoped<IClubReportSnapshotSource, ClubReportSnapshotSourceClient>();
+builder.Services.AddScoped<IFinanceReportSnapshotSource, FinanceReportSnapshotSourceClient>();
+builder.Services.AddScoped<ISmartReportSnapshotService, Report.Infrastructure.Services.SmartReportSnapshotService>();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<IReportValidationRule, ReportCompletenessRule>();
+builder.Services.AddScoped<IReportValidationRule, EventConsistencyRule>();
+builder.Services.AddScoped<IReportValidationRule, FinanceConsistencyRule>();
+builder.Services.AddScoped<IReportValidationRule, MembershipLimitationRule>();
+builder.Services.AddScoped<IReportValidationRule, KpiAvailabilityRule>();
+builder.Services.AddScoped<IReportValidationEngine, ReportValidationEngine>();
+builder.Services.AddScoped<IReportValidationService, Report.Infrastructure.Services.ReportValidationService>();
+builder.Services.AddScoped<IReportDraftGenerator, RuleBasedReportDraftGenerator>();
+builder.Services.AddScoped<IReportDraftGenerationService, Report.Infrastructure.Services.ReportDraftGenerationService>();
 builder.Services.AddSingleton<IRedisStreamProducer, RedisStreamProducer>();
 builder.Services.AddHostedService<OutboxDispatcher>();
 builder.Services.AddHangfire(configuration => configuration.UseSqlServerStorage(connString));

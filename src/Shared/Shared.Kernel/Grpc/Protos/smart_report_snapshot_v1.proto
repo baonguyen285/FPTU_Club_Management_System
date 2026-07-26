@@ -1,0 +1,61 @@
+syntax = "proto3";
+
+option csharp_namespace = "Shared.Kernel.Grpc.SmartReports.V1";
+
+package smart.reports.v1;
+
+service ClubReportSnapshotSource {
+  rpc GetClubReportData (ReportSnapshotSourceRequest) returns (ClubReportDataReply);
+}
+
+service FinanceReportSnapshotSource {
+  rpc GetFinanceReportData (ReportSnapshotSourceRequest) returns (FinanceReportDataReply);
+}
+
+message ReportSnapshotSourceRequest {
+  string club_id = 1;
+  string semester_id = 2;
+  string semester_start_utc = 3;
+  string semester_end_utc = 4;
+}
+
+message ClubReportDataReply {
+  bool club_found = 1;
+  string club_name = 2;
+  repeated SnapshotMember members = 3;
+  repeated SnapshotEvent events = 4;
+}
+
+message SnapshotMember {
+  string id = 1;
+  string user_id = 2;
+  int32 role = 3;
+  int32 status = 4;
+  string joined_at_utc = 5;
+  bool is_active = 6;
+}
+
+message SnapshotEvent {
+  string id = 1;
+  string title = 2;
+  string expected_date_utc = 3;
+  int32 status = 4;
+  bool is_active = 5;
+}
+
+message FinanceReportDataReply {
+  repeated SnapshotFinanceItem items = 1;
+  bool has_balance = 2;
+  string remaining_balance = 3;
+}
+
+message SnapshotFinanceItem {
+  string id = 1;
+  string title = 2;
+  string proposed_date_utc = 3;
+  string status = 4;
+  string requested_amount = 5;
+  optional string approved_amount = 6;
+  optional string actual_amount = 7;
+  optional string activity_id = 8;
+}

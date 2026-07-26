@@ -125,6 +125,7 @@ app.MapControllers();
 // Map gRPC Services
 app.MapGrpcService<ClubGrpcServiceImpl>();
 app.MapGrpcService<ClubAccessGrpcServiceImpl>();
+app.MapGrpcService<ClubReportSnapshotGrpcService>();
 
 // Auto migration
 using (var scope = app.Services.CreateScope())

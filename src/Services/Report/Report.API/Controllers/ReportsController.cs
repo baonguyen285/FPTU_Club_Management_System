@@ -27,11 +27,22 @@ namespace Report.API.Controllers
     {
         private readonly IMediator _mediator;
         private readonly Report.Application.Interfaces.IClubGrpcClient _club;
+        private readonly Report.Application.Interfaces.ISmartReportSnapshotService _smartReportSnapshot;
+        private readonly Report.Application.Interfaces.IReportValidationService _reportValidation;
+        private readonly Report.Application.Interfaces.IReportDraftGenerationService _draftGeneration;
 
-        public ReportsController(IMediator mediator, Report.Application.Interfaces.IClubGrpcClient club)
+        public ReportsController(
+            IMediator mediator,
+            Report.Application.Interfaces.IClubGrpcClient club,
+            Report.Application.Interfaces.ISmartReportSnapshotService smartReportSnapshot,
+            Report.Application.Interfaces.IReportValidationService reportValidation,
+            Report.Application.Interfaces.IReportDraftGenerationService draftGeneration)
         {
             _mediator = mediator;
             _club = club;
+            _smartReportSnapshot = smartReportSnapshot;
+            _reportValidation = reportValidation;
+            _draftGeneration = draftGeneration;
         }
 
         private Guid GetUserId()
@@ -42,6 +53,63 @@ namespace Report.API.Controllers
                 throw new UnauthorizedException("User is not authenticated.");
             }
             return Guid.Parse(userIdClaim.Value);
+        }
+
+        [Authorize]
+        [HttpGet("smart-assistant/preview")]
+        [ProducesResponseType(typeof(ApiResponse<ReportGenerationSnapshot>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> PreviewSmartAssistant(
+            [FromQuery] Guid clubId,
+            [FromQuery] Guid semesterId,
+            CancellationToken cancellationToken)
+        {
+            if (clubId == Guid.Empty) throw new BadRequestException("clubId is required.");
+            if (semesterId == Guid.Empty) throw new BadRequestException("semesterId is required.");
+            if (!User.IsInRole(SystemRoleNames.StudentAffairsAdmin)
+                && !await _club.CanSubmitReportsAsync(clubId, GetUserId(), cancellationToken))
+                throw new ForbiddenException("Approved ClubLeader membership for the requested club is required.");
+
+            var snapshot = await _smartReportSnapshot.GetPreviewAsync(clubId, semesterId, cancellationToken);
+            return Ok(new ApiResponse<ReportGenerationSnapshot>(
+                snapshot, "Smart report snapshot preview generated successfully."));
+        }
+
+        [Authorize]
+        [HttpPost("smart-assistant/validate")]
+        [ProducesResponseType(typeof(ApiResponse<ReportValidationResult>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> ValidateSmartAssistant(
+            [FromBody] ValidateReportRequest request,
+            CancellationToken cancellationToken)
+        {
+            if (request.ClubId == Guid.Empty) throw new BadRequestException("clubId is required.");
+            if (request.SemesterId == Guid.Empty) throw new BadRequestException("semesterId is required.");
+            if (!User.IsInRole(SystemRoleNames.StudentAffairsAdmin)
+                && !await _club.CanSubmitReportsAsync(request.ClubId, GetUserId(), cancellationToken))
+                throw new ForbiddenException("Approved ClubLeader membership for the requested club is required.");
+
+            var result = await _reportValidation.ValidateAsync(request, cancellationToken);
+            return Ok(new ApiResponse<ReportValidationResult>(
+                result, "Report validation completed successfully."));
+        }
+
+        [Authorize]
+        [HttpPost("smart-assistant/generate")]
+        [ProducesResponseType(typeof(ApiResponse<GeneratedReportDraft>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GenerateSmartAssistantDraft(
+            [FromBody] GenerateReportDraftRequest request,
+            CancellationToken cancellationToken)
+        {
+            if (request.ClubId == Guid.Empty) throw new BadRequestException("clubId is required.");
+            if (request.SemesterId == Guid.Empty) throw new BadRequestException("semesterId is required.");
+            if (!Enum.IsDefined(request.ReportType) || request.ReportType == 0)
+                throw new BadRequestException("reportType is invalid.");
+            if (!User.IsInRole(SystemRoleNames.StudentAffairsAdmin)
+                && !await _club.CanSubmitReportsAsync(request.ClubId, GetUserId(), cancellationToken))
+                throw new ForbiddenException("Approved ClubLeader membership for the requested club is required.");
+
+            var draft = await _draftGeneration.GenerateAsync(request, cancellationToken);
+            return Ok(new ApiResponse<GeneratedReportDraft>(
+                draft, "Rule-based report draft generated successfully."));
         }
 
         [Authorize]

@@ -14,6 +14,13 @@ using Finance.Infrastructure.Messaging;
 using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.ListenAnyIP(8080);
+    options.ListenAnyIP(9003, listenOptions =>
+        listenOptions.Protocols = Microsoft.AspNetCore.Server.Kestrel.Core.HttpProtocols.Http2);
+});
+builder.Services.AddGrpc();
 
 builder.Services.AddControllers();
 builder.Services.AddStandardApiBehavior();
@@ -103,6 +110,7 @@ app.MapGet("/health", () => Results.Ok(new
     timestamp = DateTime.UtcNow
 }));
 app.MapControllers();
+app.MapGrpcService<Finance.API.GrpcServices.FinanceReportSnapshotGrpcService>();
 
 using (var scope = app.Services.CreateScope())
 {

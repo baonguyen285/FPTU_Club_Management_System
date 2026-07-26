@@ -94,6 +94,7 @@ services:
       - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=report_db;User Id=sa;Password=${SQLSERVER_SA_PASSWORD:-YourStrong!Passw0rd};TrustServerCertificate=True
       - ConnectionStrings__Redis=redis:6379
       - GrpcSettings__ClubServiceUrl=http://club-service:9001
+      - GrpcSettings__FinanceServiceUrl=http://finance-service:9003
       - Messaging__LegacyPubSubBridgeEnabled=false
       - JwtSettings__SecretKey=${JWT_SECRET_KEY:-your-super-secret-key-min-32-chars!!}
       - JwtSettings__Issuer=${JWT_ISSUER:-fptu-club-system}
@@ -106,6 +107,8 @@ services:
       redis:
         condition: service_started
       club-service:
+        condition: service_started
+      finance-service:
         condition: service_started
     networks:
       - fptu-network
@@ -150,6 +153,7 @@ services:
       - Messaging__LegacyPubSubBridgeEnabled=false
     ports:
       - "5005:8080"
+      - "9003:9003"
     depends_on:
       sqlserver:
         condition: service_healthy
