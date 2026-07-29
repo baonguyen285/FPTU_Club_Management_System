@@ -25,10 +25,10 @@ public sealed class ChangeEventStatusCommandHandler : IRequestHandler<ChangeEven
         var clubEvent = await _unitOfWork.Clubs.GetEventByIdAsync(request.Id)
             ?? throw new NotFoundException($"Event with ID '{request.Id}' was not found.");
 
-        if (request.TargetStatus is EventStatus.Approved or EventStatus.Rejected or EventStatus.Completed)
+        if (request.TargetStatus is EventStatus.Approved or EventStatus.Rejected)
         {
             if (request.ActorRole != SystemRoleNames.StudentAffairsAdmin)
-                throw new ForbiddenException("Only StudentAffairsAdmin can review or complete an activity.");
+                throw new ForbiddenException("Only StudentAffairsAdmin can review an activity.");
         }
         else
         {

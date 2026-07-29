@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -15,7 +16,7 @@ namespace Auth.API.Controllers
 {
     [ApiController]
     [Route("api/v1/[controller]")]
-    [Authorize(Roles = SystemRoleNames.StudentAffairsAdmin)]
+    [Authorize]
     public class UsersController : ControllerBase
     {
         private static readonly IReadOnlySet<string> AllowedRoles = SystemRoleNames.Canonical;
@@ -82,6 +83,7 @@ namespace Auth.API.Controllers
                 }));
         }
 
+        [Authorize(Roles = SystemRoleNames.StudentAffairsAdmin)]
         [HttpPut("{id:guid}/role")]
         public async Task<IActionResult> UpdateRole(Guid id, [FromBody] UpdateUserRoleRequest request)
         {
@@ -107,6 +109,7 @@ namespace Auth.API.Controllers
             return Ok(new ApiResponse<object>(new { user.Id, user.Role }, "User role updated successfully"));
         }
 
+        [Authorize(Roles = SystemRoleNames.StudentAffairsAdmin)]
         [HttpPut("{id:guid}/status")]
         public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateUserStatusRequest request)
         {

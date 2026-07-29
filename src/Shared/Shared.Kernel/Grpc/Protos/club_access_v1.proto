@@ -1,7 +1,5 @@
 syntax = "proto3";
-
 option csharp_namespace = "Shared.Kernel.Grpc.ClubAccess.V1";
-
 package club.access.v1;
 
 service ClubAccessService {
@@ -11,13 +9,8 @@ service ClubAccessService {
   rpc CheckClubPermission (CheckClubPermissionRequest) returns (PermissionReply);
 }
 
-message ClubIdRequest {
-  string club_id = 1;
-}
-
-message ExistenceReply {
-  bool exists = 1;
-}
+message ClubIdRequest { string club_id = 1; }
+message ExistenceReply {  bool exists = 1; }
 
 message ClubSummaryReply {
   string club_id = 1;
@@ -42,9 +35,7 @@ message CheckClubPermissionRequest {
   ClubPermission permission = 3;
 }
 
-message PermissionReply {
-  bool is_allowed = 1;
-}
+message PermissionReply {  bool is_allowed = 1; }
 
 enum ClubPermission {
   CLUB_PERMISSION_UNSPECIFIED = 0;

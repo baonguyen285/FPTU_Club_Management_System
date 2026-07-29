@@ -68,8 +68,8 @@ public sealed class ClubAccessGrpcServiceImpl : ClubAccessService.ClubAccessServ
 
     private static bool IsAllowed(Club.Domain.Enums.ClubRole role, ClubPermission permission) => permission switch
     {
-        ClubPermission.ManageFinance => role == Club.Domain.Enums.ClubRole.Treasurer,
-        ClubPermission.ManageMembers or ClubPermission.ManageActivities or ClubPermission.SubmitReports => role is Club.Domain.Enums.ClubRole.ClubLeader,
+        ClubPermission.ManageFinance => role is Club.Domain.Enums.ClubRole.Treasurer or Club.Domain.Enums.ClubRole.ClubLeader,
+        ClubPermission.ManageMembers or ClubPermission.ManageActivities or ClubPermission.SubmitReports => role is Club.Domain.Enums.ClubRole.ClubLeader or Club.Domain.Enums.ClubRole.Treasurer,
         _ => false
     };
 

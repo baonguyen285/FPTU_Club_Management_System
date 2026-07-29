@@ -282,6 +282,32 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_KpiScoreHistories_Source
     EXEC('CREATE UNIQUE INDEX IX_KpiScoreHistories_SourceType_SourceId ON KpiScoreHistories(SourceType, SourceId) WHERE SourceId IS NOT NULL');
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_KpiRules_SemesterId_Name' AND object_id=OBJECT_ID('KpiRules'))
     EXEC('CREATE UNIQUE INDEX IX_KpiRules_SemesterId_Name ON KpiRules(SemesterId, Name) WHERE SemesterId IS NOT NULL AND IsActive=1');
+
+IF EXISTS (SELECT 1 FROM Semesters WHERE Code = 'SPRING2026')
+BEGIN
+    UPDATE Semesters SET StartDate = '2026-01-01', EndDate = '2026-04-30', Status = CASE WHEN MONTH(GETDATE()) BETWEEN 1 AND 4 THEN 1 ELSE 0 END WHERE Code = 'SPRING2026';
+    UPDATE Semesters SET StartDate = '2026-05-01', EndDate = '2026-08-31', Status = CASE WHEN MONTH(GETDATE()) BETWEEN 5 AND 8 THEN 1 ELSE 0 END WHERE Code = 'SUMMER2026';
+    UPDATE Semesters SET StartDate = '2026-09-01', EndDate = '2026-12-31', Status = CASE WHEN MONTH(GETDATE()) BETWEEN 9 AND 12 THEN 1 ELSE 0 END WHERE Code = 'FALL2026';
+END
+
+IF NOT EXISTS (SELECT 1 FROM Semesters)
+BEGIN
+    DECLARE @SpringId UNIQUEIDENTIFIER = '11111111-1111-1111-1111-111111111111';
+    DECLARE @SummerId UNIQUEIDENTIFIER = '22222222-2222-2222-2222-222222222222';
+    DECLARE @FallId UNIQUEIDENTIFIER = '33333333-3333-3333-3333-333333333333';
+    INSERT INTO Semesters (Id, Code, Name, StartDate, EndDate, Status, CreatedAt, IsActive)
+    VALUES 
+    (@SpringId, N'SPRING2026', N'Học kỳ Xuân 2026 (SP26)', '2026-01-01', '2026-04-30', CASE WHEN MONTH(GETDATE()) BETWEEN 1 AND 4 THEN 1 ELSE 0 END, GETUTCDATE(), 1),
+    (@SummerId, N'SUMMER2026', N'Học kỳ Hè 2026 (SU26)', '2026-05-01', '2026-08-31', CASE WHEN MONTH(GETDATE()) BETWEEN 5 AND 8 THEN 1 ELSE 0 END, GETUTCDATE(), 1),
+    (@FallId, N'FALL2026', N'Học kỳ Thu 2026 (FA26)', '2026-09-01', '2026-12-31', CASE WHEN MONTH(GETDATE()) BETWEEN 9 AND 12 THEN 1 ELSE 0 END, GETUTCDATE(), 1);
+
+    INSERT INTO KpiRules (Id, SemesterId, Name, Description, MaxPoints, Weight, CreatedAt, IsActive)
+    VALUES
+    (NEWID(), @SpringId, N'Tổ chức hoạt động chuyên môn', N'Cộng điểm khi tổ chức thành công workshop, seminar chuyên môn.', 30, 0.30, GETUTCDATE(), 1),
+    (NEWID(), @SpringId, N'Nộp báo cáo hoạt động đúng hạn', N'Nộp đầy đủ báo cáo hoạt động trước hạn quy định của CTSV.', 20, 0.20, GETUTCDATE(), 1),
+    (NEWID(), @SpringId, N'Báo cáo tài chính minh bạch', N'Báo cáo thu chi có đầy đủ hóa đơn chứng từ hợp lệ.', 20, 0.20, GETUTCDATE(), 1),
+    (NEWID(), @SpringId, N'Số lượng thành viên tích cực', N'Duy trì tỉ lệ thành viên tham gia sinh hoạt trên 80%.', 30, 0.30, GETUTCDATE(), 1);
+END
 ");
     }
     catch (Exception ex)

@@ -1,22 +1,6 @@
 {
   "Routes": [
     {
-      "DownstreamPathTemplate": "/api/v1/club-applications/{everything}",
-      "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [
-        {
-          "Host": "club-service",
-          "Port": 8080
-        }
-      ],
-      "UpstreamPathTemplate": "/gateway/club-applications/{everything}",
-      "UpstreamMethods": [ "Get", "Post", "Put", "Delete", "Options" ],
-      "AuthenticationOptions": {
-        "AuthenticationProviderKey": "Bearer",
-        "AllowedScopes": []
-      }
-    },
-    {
       "DownstreamPathTemplate": "/api/v1/club-applications",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
@@ -26,11 +10,21 @@
         }
       ],
       "UpstreamPathTemplate": "/gateway/club-applications",
-      "UpstreamMethods": [ "Get", "Post", "Put", "Options" ],
-      "AuthenticationOptions": {
-        "AuthenticationProviderKey": "Bearer",
-        "AllowedScopes": []
-      }
+      "UpstreamMethods": [ "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS" ],
+      "Priority": 2
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/club-applications/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "club-service",
+          "Port": 8080
+        }
+      ],
+      "UpstreamPathTemplate": "/gateway/club-applications/{everything}",
+      "UpstreamMethods": [ "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS" ],
+      "Priority": 1
     },
     {
       "DownstreamPathTemplate": "/health",
@@ -42,7 +36,7 @@
         }
       ],
       "UpstreamPathTemplate": "/gateway/finance/health",
-      "UpstreamMethods": [ "Get", "Options" ]
+      "UpstreamMethods": [ "GET", "OPTIONS" ]
     },
     {
       "DownstreamPathTemplate": "/api/v1/finance/{everything}",
@@ -54,11 +48,8 @@
         }
       ],
       "UpstreamPathTemplate": "/gateway/finance/{everything}",
-      "UpstreamMethods": [ "Get", "Post", "Put", "Patch", "Delete", "Options" ],
-      "AuthenticationOptions": {
-        "AuthenticationProviderKey": "Bearer",
-        "AllowedScopes": []
-      }
+      "UpstreamMethods": [ "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS" ],
+      "Priority": 1
     },
     {
       "DownstreamPathTemplate": "/api/v1/auth/{everything}",
@@ -70,23 +61,8 @@
         }
       ],
       "UpstreamPathTemplate": "/gateway/auth/{everything}",
-      "UpstreamMethods": [ "Get", "Post", "Put", "Delete", "Options" ]
-    },
-    {
-      "DownstreamPathTemplate": "/api/v1/users/{everything}",
-      "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [
-        {
-          "Host": "auth-service",
-          "Port": 8080
-        }
-      ],
-      "UpstreamPathTemplate": "/gateway/users/{everything}",
-      "UpstreamMethods": [ "Get", "Post", "Put", "Delete", "Options" ],
-      "AuthenticationOptions": {
-        "AuthenticationProviderKey": "Bearer",
-        "AllowedScopes": []
-      }
+      "UpstreamMethods": [ "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS" ],
+      "Priority": 1
     },
     {
       "DownstreamPathTemplate": "/api/v1/users",
@@ -98,11 +74,21 @@
         }
       ],
       "UpstreamPathTemplate": "/gateway/users",
-      "UpstreamMethods": [ "Get", "Post", "Put", "Delete", "Options" ],
-      "AuthenticationOptions": {
-        "AuthenticationProviderKey": "Bearer",
-        "AllowedScopes": []
-      }
+      "UpstreamMethods": [ "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS" ],
+      "Priority": 2
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/users/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "auth-service",
+          "Port": 8080
+        }
+      ],
+      "UpstreamPathTemplate": "/gateway/users/{everything}",
+      "UpstreamMethods": [ "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS" ],
+      "Priority": 1
     },
     {
       "DownstreamPathTemplate": "/api/v1/reports/{everything}",
@@ -114,11 +100,8 @@
         }
       ],
       "UpstreamPathTemplate": "/gateway/reports/{everything}",
-      "UpstreamMethods": [ "Get", "Post", "Put", "Delete", "Options" ],
-      "AuthenticationOptions": {
-        "AuthenticationProviderKey": "Bearer",
-        "AllowedScopes": []
-      }
+      "UpstreamMethods": [ "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS" ],
+      "Priority": 1
     },
     {
       "DownstreamPathTemplate": "/api/v1/kpi/{everything}",
@@ -130,27 +113,8 @@
         }
       ],
       "UpstreamPathTemplate": "/gateway/kpi/{everything}",
-      "UpstreamMethods": [ "Get", "Post", "Put", "Delete", "Options" ],
-      "AuthenticationOptions": {
-        "AuthenticationProviderKey": "Bearer",
-        "AllowedScopes": []
-      }
-    },
-    {
-      "DownstreamPathTemplate": "/api/v1/clubs/{everything}",
-      "DownstreamScheme": "http",
-      "DownstreamHostAndPorts": [
-        {
-          "Host": "club-service",
-          "Port": 8080
-        }
-      ],
-      "UpstreamPathTemplate": "/gateway/clubs/{everything}",
-      "UpstreamMethods": [ "Get", "Post", "Put", "Delete", "Options" ],
-      "AuthenticationOptions": {
-        "AuthenticationProviderKey": "Bearer",
-        "AllowedScopes": []
-      }
+      "UpstreamMethods": [ "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS" ],
+      "Priority": 1
     },
     {
       "DownstreamPathTemplate": "/api/v1/clubs",
@@ -162,14 +126,11 @@
         }
       ],
       "UpstreamPathTemplate": "/gateway/clubs",
-      "UpstreamMethods": [ "Get", "Post", "Put", "Delete", "Options" ],
-      "AuthenticationOptions": {
-        "AuthenticationProviderKey": "Bearer",
-        "AllowedScopes": []
-      }
+      "UpstreamMethods": [ "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS" ],
+      "Priority": 2
     },
     {
-      "DownstreamPathTemplate": "/api/v1/events/{everything}",
+      "DownstreamPathTemplate": "/api/v1/clubs/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
@@ -177,12 +138,9 @@
           "Port": 8080
         }
       ],
-      "UpstreamPathTemplate": "/gateway/events/{everything}",
-      "UpstreamMethods": [ "Get", "Post", "Put", "Delete", "Options" ],
-      "AuthenticationOptions": {
-        "AuthenticationProviderKey": "Bearer",
-        "AllowedScopes": []
-      }
+      "UpstreamPathTemplate": "/gateway/clubs/{everything}",
+      "UpstreamMethods": [ "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS" ],
+      "Priority": 1
     },
     {
       "DownstreamPathTemplate": "/api/v1/events",
@@ -194,27 +152,21 @@
         }
       ],
       "UpstreamPathTemplate": "/gateway/events",
-      "UpstreamMethods": [ "Get", "Post", "Put", "Delete", "Options" ],
-      "AuthenticationOptions": {
-        "AuthenticationProviderKey": "Bearer",
-        "AllowedScopes": []
-      }
+      "UpstreamMethods": [ "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS" ],
+      "Priority": 2
     },
     {
-      "DownstreamPathTemplate": "/api/v1/notifications/{everything}",
+      "DownstreamPathTemplate": "/api/v1/events/{everything}",
       "DownstreamScheme": "http",
       "DownstreamHostAndPorts": [
         {
-          "Host": "notification-service",
+          "Host": "club-service",
           "Port": 8080
         }
       ],
-      "UpstreamPathTemplate": "/gateway/notifications/{everything}",
-      "UpstreamMethods": [ "Get", "Post", "Put", "Delete", "Options" ],
-      "AuthenticationOptions": {
-        "AuthenticationProviderKey": "Bearer",
-        "AllowedScopes": []
-      }
+      "UpstreamPathTemplate": "/gateway/events/{everything}",
+      "UpstreamMethods": [ "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS" ],
+      "Priority": 1
     },
     {
       "DownstreamPathTemplate": "/api/v1/notifications",
@@ -226,11 +178,21 @@
         }
       ],
       "UpstreamPathTemplate": "/gateway/notifications",
-      "UpstreamMethods": [ "Get", "Post", "Put", "Delete", "Options" ],
-      "AuthenticationOptions": {
-        "AuthenticationProviderKey": "Bearer",
-        "AllowedScopes": []
-      }
+      "UpstreamMethods": [ "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS" ],
+      "Priority": 2
+    },
+    {
+      "DownstreamPathTemplate": "/api/v1/notifications/{everything}",
+      "DownstreamScheme": "http",
+      "DownstreamHostAndPorts": [
+        {
+          "Host": "notification-service",
+          "Port": 8080
+        }
+      ],
+      "UpstreamPathTemplate": "/gateway/notifications/{everything}",
+      "UpstreamMethods": [ "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS" ],
+      "Priority": 1
     },
     {
       "DownstreamPathTemplate": "/hubs/notification/negotiate",
@@ -242,7 +204,7 @@
         }
       ],
       "UpstreamPathTemplate": "/gateway/hubs/notification/negotiate",
-      "UpstreamMethods": [ "Post", "Options" ]
+      "UpstreamMethods": [ "POST", "OPTIONS" ]
     },
     {
       "DownstreamPathTemplate": "/hubs/notification",
@@ -254,7 +216,7 @@
         }
       ],
       "UpstreamPathTemplate": "/gateway/hubs/notification",
-      "UpstreamMethods": [ "Get", "Post", "Put", "Delete", "Options" ]
+      "UpstreamMethods": [ "GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS" ]
     }
   ],
   "GlobalConfiguration": {

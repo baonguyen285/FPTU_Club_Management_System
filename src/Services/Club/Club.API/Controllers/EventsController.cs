@@ -101,7 +101,7 @@ namespace Club.API.Controllers
         [HttpPut("{id}/reject")]
         public Task<IActionResult> Reject(Guid id) => ChangeStatus(id, EventStatus.Rejected);
 
-        [Authorize(Roles = SystemRoleNames.StudentAffairsAdmin)]
+        [Authorize]
         [HttpPut("{id}/complete")]
         public Task<IActionResult> Complete(Guid id) => ChangeStatus(id, EventStatus.Completed);
 

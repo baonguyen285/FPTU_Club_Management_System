@@ -118,6 +118,51 @@ using (var scope = app.Services.CreateScope())
     {
         var context = scope.ServiceProvider.GetRequiredService<FinanceDbContext>();
         context.Database.Migrate();
+
+        var demoClubId = Guid.Parse("99999999-9999-9999-9999-999999999999");
+        if (!context.ClubFinanceBalances.Any(b => b.ClubId == demoClubId))
+        {
+            context.ClubFinanceBalances.Add(new Finance.Domain.Entities.ClubFinanceBalance
+            {
+                Id = Guid.NewGuid(),
+                ClubId = demoClubId,
+                AllocatedAmount = 15000000m,
+                SpentAmount = 4500000m,
+                AvailableAmount = 10500000m,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                IsActive = true
+            });
+
+            context.FinanceTransactions.Add(new Finance.Domain.Entities.FinanceTransaction
+            {
+                Id = Guid.NewGuid(),
+                ClubId = demoClubId,
+                Amount = 15000000m,
+                Type = Finance.Domain.Enums.FinanceTransactionType.Disbursement,
+                Description = "Cấp kinh phí hoạt động Học kỳ Hè 2026 (SU26) - Phòng CTSV",
+                TransactionDate = DateTime.UtcNow.AddDays(-15),
+                CreatedBy = Guid.Parse("77777777-7777-7777-7777-777777777777"),
+                CreatedAt = DateTime.UtcNow.AddDays(-15),
+                IsActive = true
+            });
+
+            context.FinanceTransactions.Add(new Finance.Domain.Entities.FinanceTransaction
+            {
+                Id = Guid.NewGuid(),
+                ClubId = demoClubId,
+                Amount = 4500000m,
+                Type = Finance.Domain.Enums.FinanceTransactionType.Expense,
+                Description = "Quyết toán chi phí Workshop AI trong Lập trình",
+                TransactionDate = DateTime.UtcNow.AddDays(-5),
+                ReceiptUrl = "https://drive.google.com/file/d/demo-receipt-workshop-ai",
+                CreatedBy = Guid.Parse("77777777-7777-7777-7777-777777777777"),
+                CreatedAt = DateTime.UtcNow.AddDays(-5),
+                IsActive = true
+            });
+
+            context.SaveChanges();
+        }
     }
     catch (Exception exception)
     {
